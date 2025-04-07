@@ -1,0 +1,11 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+issueTrackerURL="http://yourissueurl.com/"
+
+[[mods]]
+modId="vox"
+version="1.0"
+displayName="Vox"
+authors="B4dCompany"
+description="A powerful Minecraft client with modular addons."
