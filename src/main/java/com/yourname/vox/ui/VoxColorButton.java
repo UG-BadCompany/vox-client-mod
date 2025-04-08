@@ -1,51 +1,45 @@
 package com.yourname.vox.ui;
 
+import com.yourname.vox.ConfigManager;
+import com.yourname.vox.IVoxAddon;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.MathHelper; // Added import
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.text.Text;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+public class VoxColorButton extends ButtonWidget {
+    private final IVoxAddon addon;
+    private final VoxTheme theme;
+    private boolean visible = true;
 
-public class VoxColorButton extends VoxButton {
-    private final Supplier<Integer> colorGetter;
-    private final Consumer<Integer> colorSetter;
-
-    public VoxColorButton(VoxTheme theme, String label, Supplier<Integer> colorGetter, Consumer<Integer> colorSetter) {
-        super(theme, label);
-        this.colorGetter = colorGetter;
-        this.colorSetter = colorSetter;
+    public VoxColorButton(int x, int y, int width, int height, IVoxAddon addon) {
+        super(x, y, width, height, Text.literal(addon.getName()), btn -> addon.toggle(), btn -> Text.literal(addon.getDescription()));
+        this.addon = addon;
+        this.theme = new VoxTheme();
     }
 
-    @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-        boolean isHovered = mouseX >= x && mouseX <= x + getWidth() && mouseY >= y && mouseY <= y + getHeight();
-        renderWidget(context, mouseX, mouseY, y, delta, isHovered, false);
+    public void renderButton(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (!visible) return;
+        boolean isActive = ConfigManager.addonToggles.getOrDefault(addon.getName(), false);
+        // Only draw a background if active or hovered
+        if (isActive || isHovered()) {
+            int bgStart = isActive ? theme.getButtonActiveStart() : theme.getButtonHoverStart();
+            int bgEnd = isActive ? theme.getButtonActiveEnd() : theme.getButtonHoverEnd();
+            context.fillGradient(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bgStart, bgEnd);
+        }
+
+        // Draw text without any default background
+        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(), getX() + 4, getY() + (getHeight() - 8) / 2, isActive ? theme.getActiveTextColor() : theme.getTextColor());
+
+        int toggleColor = isActive ? theme.getToggleOnColor() : theme.getToggleOffColor();
+        context.fill(getX() + getWidth() - 8, getY() + getHeight() / 2 - 2, getX() + getWidth() - 4, getY() + getHeight() / 2 + 2, toggleColor);
     }
 
-    @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, int yPos, float delta, boolean isHovered, boolean isActive) {
-        this.y = yPos;
-        hoverScale = MathHelper.lerp(0.2f * delta, hoverScale, isHovered ? 1.05f : 1.0f);
-        int scaledWidth = (int) (getWidth() * hoverScale);
-        int scaledHeight = (int) (getHeight() * hoverScale);
-        int offsetX = (scaledWidth - getWidth()) / 2;
-        int offsetY = (scaledHeight - getHeight()) / 2;
-        int renderX = x - offsetX;
-        int renderY = y - offsetY;
-
-        int bgColor = isHovered ? theme.buttonHover : theme.buttonBg;
-        context.fill(renderX, renderY, renderX + scaledWidth, renderY + scaledHeight, bgColor);
-        context.fill(renderX + scaledWidth - 20, renderY, renderX + scaledWidth, renderY + scaledHeight, colorGetter.get());
-        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(), renderX + 5, renderY + (scaledHeight - 8) / 2, theme.textColor);
+    public void setVisible(boolean visible) {
+        this.visible = visible;
     }
 
-    @Override
-    public void onClick(double mouseX, double mouseY) {
-        // Placeholder for color picker logic
-        colorSetter.accept(0xFFFF0000); // Example: Set to red
-        MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+    public boolean isVisible() {
+        return visible;
     }
 }

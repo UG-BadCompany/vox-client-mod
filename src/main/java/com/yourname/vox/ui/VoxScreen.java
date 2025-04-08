@@ -19,66 +19,56 @@ public class VoxScreen extends Screen {
     private final List<CategoryWindow> categoryWindows = new ArrayList<>();
     private SearchWindow searchWindow;
     private TextFieldWidget searchField;
-    private final int controlWidth = 100; // Adjusted for logo size
-    private final int controlHeight = 50; // Adjusted for logo size
-    private final int controlX; // Fixed position
-    private final int controlY; // Fixed position
-    private Identifier logoTexture;
+    private final int controlWidth = 100;
+    private final int controlHeight = 50;
+    private int controlX;
+    private final int controlY = 10;
+    private Identifier logoTexture = new Identifier("vox", "images/logo.png");
+    private boolean draggingLogo = false;
+    private int dragOffsetX;
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
-        // Load the logo texture from assets
-        logoTexture = new Identifier("vox", "images/logo.png");
-        // Fixed position for the logo (top center)
-        controlX = (width - controlWidth) / 2;
-        controlY = 10; // Near the top of the screen
+        int centerX = (width - controlWidth) / 2;
+        controlX = centerX + (centerX / 2); // 50% more right from center
     }
 
     @Override
     protected void init() {
-        // Search field as a separate window
-        searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, 0, 0, 120, 20, Text.literal("Search..."));
+        searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, (width - 120) / 2, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
         searchField.setMaxLength(32);
         searchField.setChangedListener(this::updateSearch);
         addDrawableChild(searchField);
         searchWindow = new SearchWindow(theme, (width - 130) / 2, controlY + controlHeight + 10, searchField);
 
-        // Category windows
         categoryWindows.clear();
         List<IVoxAddon> allAddons = AddonLoader.getAddons();
-        String[] categories = {"All", "Combat", "Utility", "Movement", "Render", "World", "Client"};
+        String[] categories = {"Combat", "Player", "Visuals", "Movement", "Miscellaneous", "Core"};
 
-        // Calculate total grid size
-        int windowsPerRow = (int) Math.ceil(width / 90.0); // 90 = window width (80) + spacing (10)
+        int windowsPerRow = (int) Math.ceil(width / 95.0); // 90px width + 5px spacing
         int totalRows = (int) Math.ceil((double) categories.length / windowsPerRow);
-        int totalGridWidth = windowsPerRow * 90 - 10; // Total width of the grid
-        int totalGridHeight = totalRows * 310 - 10; // Total height of the grid
-
-        // Center the grid on the screen, shifted left
-        int windowX = (width - totalGridWidth) / 2 - 50; // Shift left by 50 pixels
+        int totalGridWidth = windowsPerRow * 95 - 5;
+        int totalGridHeight = totalRows * 350 - 5; // Reverted height to 350px
+        int centerX = (width - totalGridWidth) / 2;
+        int windowX = centerX + (centerX / 2); // Shift right by half
         int windowY = (height - totalGridHeight) / 2;
         int row = 0;
         int col = 0;
 
         for (String category : categories) {
-            List<IVoxAddon> addons;
-            if (category.equals("All")) {
-                addons = allAddons;
-            } else {
-                addons = allAddons.stream()
-                        .filter(a -> {
-                            if (category.equals("Combat")) return List.of("KillAura", "BowAimbot").contains(a.getName());
-                            if (category.equals("Utility")) return List.of("AntiAFK", "AutoRespond", "ServerScan").contains(a.getName());
-                            if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
-                            if (category.equals("Render")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
-                            if (category.equals("World")) return List.of("AutoMine", "Nuker").contains(a.getName());
-                            if (category.equals("Client")) return List.of("ClickGUI", "HUD").contains(a.getName());
-                            return false;
-                        })
-                        .collect(Collectors.toList());
-            }
+            List<IVoxAddon> addons = category.equals("All") ? allAddons : allAddons.stream()
+                    .filter(a -> {
+                        if (category.equals("Combat")) return List.of("KillAura", "BowAimbot").contains(a.getName());
+                        if (category.equals("Player")) return List.of("AntiAFK", "AutoRespond").contains(a.getName());
+                        if (category.equals("Visuals")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
+                        if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
+                        if (category.equals("Miscellaneous")) return List.of("ServerScan").contains(a.getName());
+                        if (category.equals("Core")) return List.of("ClickGUI", "HUD").contains(a.getName());
+                        return false;
+                    })
+                    .collect(Collectors.toList());
 
-            categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 90, windowY + row * 310));
+            categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 95, windowY + row * 350));
             col++;
             if (col >= windowsPerRow) {
                 col = 0;
@@ -96,18 +86,16 @@ public class VoxScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
+        // Removed background fill to ensure no gray box
+        // context.fill(0, 0, width, height, theme.getBackgroundColor());
 
-        // Control window (logo only, fixed position)
         try {
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
         } catch (Exception e) {
             System.err.println("Failed to render logo texture: " + e.getMessage());
         }
 
-        // Search window
         searchWindow.render(context, mouseX, mouseY, delta);
-
-        // Category windows
         for (CategoryWindow window : categoryWindows) {
             window.render(context, mouseX, mouseY, delta);
         }
@@ -115,23 +103,23 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // Clicking search window
-        if (searchWindow.mouseClicked(mouseX, mouseY, button)) {
-            return true;
-        }
-
-        // Clicking category windows
-        for (CategoryWindow window : categoryWindows) {
-            if (window.mouseClicked(mouseX, mouseY, button)) {
+        if (button == 0) {
+            if (mouseX >= controlX && mouseX <= controlX + controlWidth && mouseY >= controlY && mouseY <= controlY + controlHeight) {
+                draggingLogo = true;
+                dragOffsetX = (int) (mouseX - controlX);
                 return true;
             }
+            if (searchWindow.mouseClicked(mouseX, mouseY, button)) return true;
+            for (CategoryWindow window : categoryWindows) {
+                if (window.mouseClicked(mouseX, mouseY, button)) return true;
+            }
         }
-
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        draggingLogo = false;
         searchWindow.mouseReleased(mouseX, mouseY, button);
         for (CategoryWindow window : categoryWindows) {
             window.mouseReleased(mouseX, mouseY, button);
@@ -141,6 +129,11 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (draggingLogo) {
+            controlX = (int) (mouseX - dragOffsetX);
+            controlX = MathHelper.clamp(controlX, 0, width - controlWidth);
+            return true;
+        }
         searchWindow.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
         for (CategoryWindow window : categoryWindows) {
             window.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
@@ -151,9 +144,7 @@ public class VoxScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         for (CategoryWindow window : categoryWindows) {
-            if (window.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
-                return true;
-            }
+            if (window.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
