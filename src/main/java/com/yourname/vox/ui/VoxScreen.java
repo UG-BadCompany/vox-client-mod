@@ -26,53 +26,73 @@ public class VoxScreen extends Screen {
     private Identifier logoTexture = new Identifier("vox", "images/logo.png");
     private boolean draggingLogo = false;
     private int dragOffsetX;
+    private int previousWidth = 0;
+    private int previousHeight = 0;
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
-        int centerX = (width - controlWidth) / 2;
-        controlX = centerX + (centerX / 2); // 50% more right from center
+        updateControlPosition();
+    }
+
+    private void updateControlPosition() {
+        // Center the logo horizontally
+        controlX = (width - controlWidth) / 2;
     }
 
     @Override
     protected void init() {
-        searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, (width - 120) / 2, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
+        // Check if window size has changed
+        if (width != previousWidth || height != previousHeight) {
+            previousWidth = width;
+            previousHeight = height;
+            updateControlPosition();
+            categoryWindows.clear(); // Clear and re-add windows to reposition them
+        }
+
+        // Position search bar on the right
+        searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, width - 130, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
         searchField.setMaxLength(32);
         searchField.setChangedListener(this::updateSearch);
         addDrawableChild(searchField);
-        searchWindow = new SearchWindow(theme, (width - 130) / 2, controlY + controlHeight + 10, searchField);
+        searchWindow = new SearchWindow(theme, width - 130, controlY + controlHeight + 10, searchField);
 
-        categoryWindows.clear();
-        List<IVoxAddon> allAddons = AddonLoader.getAddons();
-        String[] categories = {"Combat", "Player", "Visuals", "Movement", "Miscellaneous", "Core"};
+        if (categoryWindows.isEmpty()) {
+            List<IVoxAddon> allAddons = AddonLoader.getAddons();
+            String[] categories = {"Chat", "Combat", "Miscellaneous", "Movement", "Player", "Render", "World"};
 
-        int windowsPerRow = (int) Math.ceil(width / 95.0); // 90px width + 5px spacing
-        int totalRows = (int) Math.ceil((double) categories.length / windowsPerRow);
-        int totalGridWidth = windowsPerRow * 95 - 5;
-        int totalGridHeight = totalRows * 350 - 5; // Reverted height to 350px
-        int centerX = (width - totalGridWidth) / 2;
-        int windowX = centerX + (centerX / 2); // Shift right by half
-        int windowY = (height - totalGridHeight) / 2;
-        int row = 0;
-        int col = 0;
+            int windowsPerRow = (int) Math.ceil(width / 55.0); // 50px width + 5px spacing
+            int totalRows = (int) Math.ceil((double) categories.length / windowsPerRow);
+            int totalGridWidth = windowsPerRow * 55 - 5;
+            int totalGridHeight = totalRows * 400 - 5;
+            int windowX = (width - totalGridWidth) / 2; // Center the grid horizontally
+            int windowY = (height - totalGridHeight) / 2; // Center the grid vertically
+            int row = 0;
+            int col = 0;
 
-        for (String category : categories) {
-            List<IVoxAddon> addons = category.equals("All") ? allAddons : allAddons.stream()
-                    .filter(a -> {
-                        if (category.equals("Combat")) return List.of("KillAura", "BowAimbot").contains(a.getName());
-                        if (category.equals("Player")) return List.of("AntiAFK", "AutoRespond").contains(a.getName());
-                        if (category.equals("Visuals")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
-                        if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
-                        if (category.equals("Miscellaneous")) return List.of("ServerScan").contains(a.getName());
-                        if (category.equals("Core")) return List.of("ClickGUI", "HUD").contains(a.getName());
-                        return false;
-                    })
-                    .collect(Collectors.toList());
+            // Adjust windowX to ensure the grid is centered even with fewer columns
+            int actualColumns = Math.min(categories.length, windowsPerRow);
+            int actualGridWidth = actualColumns * 55 - 5;
+            windowX = (width - actualGridWidth) / 2; // Recalculate to center the actual grid width
 
-            categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 95, windowY + row * 350));
-            col++;
-            if (col >= windowsPerRow) {
-                col = 0;
-                row++;
+            for (String category : categories) {
+                List<IVoxAddon> addons = category.equals("All") ? allAddons : allAddons.stream()
+                        .filter(a -> {
+                            if (category.equals("Combat")) return List.of("KillAura", "BowAimbot").contains(a.getName());
+                            if (category.equals("Player")) return List.of("AntiAFK", "AutoRespond").contains(a.getName());
+                            if (category.equals("Visuals")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
+                            if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
+                            if (category.equals("Miscellaneous")) return List.of("ServerScan").contains(a.getName());
+                            if (category.equals("Core")) return List.of("ClickGUI", "HUD").contains(a.getName());
+                            return false;
+                        })
+                        .collect(Collectors.toList());
+
+                categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 55, windowY + row * 400));
+                col++;
+                if (col >= windowsPerRow) {
+                    col = 0;
+                    row++;
+                }
             }
         }
     }
@@ -86,9 +106,6 @@ public class VoxScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        // Removed background fill to ensure no gray box
-        // context.fill(0, 0, width, height, theme.getBackgroundColor());
-
         try {
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
         } catch (Exception e) {
@@ -99,6 +116,13 @@ public class VoxScreen extends Screen {
         for (CategoryWindow window : categoryWindows) {
             window.render(context, mouseX, mouseY, delta);
         }
+    }
+
+    @Override
+    public void resize(MinecraftClient client, int width, int height) {
+        super.resize(client, width, height);
+        // Force re-initialization to adjust positions
+        this.init();
     }
 
     @Override
