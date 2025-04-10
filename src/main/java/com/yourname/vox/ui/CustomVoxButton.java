@@ -7,6 +7,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper; // Added import
+import org.joml.Matrix4f;
 
 public class CustomVoxButton extends ClickableWidget {
     private final IVoxAddon addon;
@@ -34,8 +36,29 @@ public class CustomVoxButton extends ClickableWidget {
             context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bgColor);
         }
 
-        // Draw text
-        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(), getX() + 4, getY() + (getHeight() - 8) / 2, isActive ? 0xFF66B2FF : 0xFFFFFFFF);
+        // Auto-size text to fit within button width
+        String text = getMessage().getString();
+        int maxWidth = getWidth() - 8; // Account for padding
+        float scale = 1.0f;
+        int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(text);
+        if (textWidth > maxWidth) {
+            scale = (float) maxWidth / textWidth;
+            scale = MathHelper.clamp(scale, 0.4f, 1.0f); // Allow smaller scale for better fitting
+            // If scale is too small, truncate text instead
+            if (scale < 0.4f) {
+                scale = 0.4f;
+                text = MinecraftClient.getInstance().textRenderer.trimToWidth(text, maxWidth) + "...";
+            }
+        }
+
+        // Draw scaled text
+        Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
+        context.getMatrices().push();
+        context.getMatrices().scale(scale, scale, 1.0f);
+        float scaledX = (getX() + 4) / scale;
+        float scaledY = (getY() + (getHeight() - 8) / 2) / scale;
+        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, text, (int) scaledX, (int) scaledY, isActive ? 0xFF66B2FF : 0xFFFFFFFF);
+        context.getMatrices().pop();
     }
 
     @Override

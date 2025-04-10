@@ -15,7 +15,7 @@ public class CategoryWindow {
     private final List<CustomVoxButton> buttons;
     private int x; // Movable
     private int y; // Movable
-    private final int width = 50; // Slimmed to 50px (half of 100px)
+    private final int width = 80; // Widened to 80px
     private final int height = 400;
     private int scrollOffset = 0;
     private int maxScroll = 0;
@@ -34,7 +34,7 @@ public class CategoryWindow {
 
         int buttonY = titleBarHeight; // Relative to window's top
         for (IVoxAddon addon : addons) {
-            buttons.add(new CustomVoxButton(x + 5, y + buttonY, 40, 14, addon)); // Adjusted width to 40px
+            buttons.add(new CustomVoxButton(x + 5, y + buttonY, 70, 14, addon)); // Adjusted width to 70px
             buttonY += 16; // 14px height + 2px spacing
         }
         maxScroll = Math.max(0, (buttons.size() * 16) - (height - titleBarHeight));
@@ -43,7 +43,7 @@ public class CategoryWindow {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         // Draw title bar background
         context.fill(x, y, x + width, y + titleBarHeight, 0xFF1C2526); // Dark blue title bar
-        String displayText = category.length() > 6 ? category.substring(0, 6) + "..." : category; // Adjusted for slimmer width
+        String displayText = category.length() > 10 ? category.substring(0, 10) + "..." : category; // Adjusted for new width
         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, displayText, x + width / 2, y + 4, 0xFFFFFFFF);
 
         // No background fill for the addon area (transparent)

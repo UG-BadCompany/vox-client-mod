@@ -60,9 +60,9 @@ public class VoxScreen extends Screen {
             List<IVoxAddon> allAddons = AddonLoader.getAddons();
             String[] categories = {"Chat", "Combat", "Miscellaneous", "Movement", "Player", "Render", "World"};
 
-            int windowsPerRow = (int) Math.ceil(width / 55.0); // 50px width + 5px spacing
+            int windowsPerRow = (int) Math.ceil(width / 85.0); // 80px width + 5px spacing
             int totalRows = (int) Math.ceil((double) categories.length / windowsPerRow);
-            int totalGridWidth = windowsPerRow * 55 - 5;
+            int totalGridWidth = windowsPerRow * 85 - 5;
             int totalGridHeight = totalRows * 400 - 5;
             int windowX = (width - totalGridWidth) / 2; // Center the grid horizontally
             int windowY = (height - totalGridHeight) / 2; // Center the grid vertically
@@ -71,7 +71,7 @@ public class VoxScreen extends Screen {
 
             // Adjust windowX to ensure the grid is centered even with fewer columns
             int actualColumns = Math.min(categories.length, windowsPerRow);
-            int actualGridWidth = actualColumns * 55 - 5;
+            int actualGridWidth = actualColumns * 85 - 5;
             windowX = (width - actualGridWidth) / 2; // Recalculate to center the actual grid width
 
             for (String category : categories) {
@@ -87,7 +87,7 @@ public class VoxScreen extends Screen {
                         })
                         .collect(Collectors.toList());
 
-                categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 55, windowY + row * 400));
+                categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 85, windowY + row * 400));
                 col++;
                 if (col >= windowsPerRow) {
                     col = 0;
