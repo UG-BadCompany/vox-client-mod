@@ -14,17 +14,16 @@ public class SearchWindow {
         this.x = x;
         this.y = y;
         this.searchField = searchField;
-        this.searchField.setX(x + 5);
-        this.searchField.setY(y + 5);
+        this.searchField.setX(x);
+        this.searchField.setY(y);
     }
 
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Removed background fill to ensure no gray box
-        // context.fillGradient(x, y, x + 130, y + 30, theme.getWindowBgStart(), theme.getWindowBgEnd());
         searchField.render(context, mouseX, mouseY, delta);
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // Delegate directly to the search field
         return searchField.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -33,6 +32,6 @@ public class SearchWindow {
     }
 
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        return false;
+        return searchField.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 }

@@ -52,8 +52,11 @@ public class VoxScreen extends Screen {
         // Position search bar on the right
         searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, width - 130, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
         searchField.setMaxLength(32);
+        searchField.setEditable(true); // Ensure it’s editable
+        searchField.setVisible(true); // Ensure it’s visible
+        searchField.setFocusUnlocked(true); // Allow focusing
         searchField.setChangedListener(this::updateSearch);
-        addDrawableChild(searchField);
+        addDrawableChild(searchField); // Add to screen’s children
         searchWindow = new SearchWindow(theme, width - 130, controlY + controlHeight + 10, searchField);
 
         if (categoryWindows.isEmpty()) {
@@ -127,6 +130,12 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // Ensure the search field can receive focus
+        if (searchField.mouseClicked(mouseX, mouseY, button)) {
+            setFocused(searchField); // Set focus to the search field
+            return true;
+        }
+
         if (button == 0) {
             if (mouseX >= controlX && mouseX <= controlX + controlWidth && mouseY >= controlY && mouseY <= controlY + controlHeight) {
                 draggingLogo = true;
