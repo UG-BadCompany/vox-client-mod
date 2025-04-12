@@ -7,7 +7,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper; // Added import
+import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
 
 public class CustomVoxButton extends ClickableWidget {
@@ -30,28 +30,24 @@ public class CustomVoxButton extends ClickableWidget {
         if (!visible) return;
         boolean isActive = ConfigManager.addonToggles.getOrDefault(addon.getName(), false);
         boolean isHovered = mouseX >= getX() && mouseX < getX() + getWidth() && mouseY >= getY() && mouseY < getY() + getHeight();
-        // Draw background if active or hovered
         if (isActive || isHovered) {
-            int bgColor = isActive ? 0xFF1C3A5E : 0xFF4A4A4A; // Blue when active, light gray when hovered
+            int bgColor = isActive ? 0xFF1C3A5E : 0xFF4A4A4A;
             context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bgColor);
         }
 
-        // Auto-size text to fit within button width
         String text = getMessage().getString();
-        int maxWidth = getWidth() - 8; // Account for padding
+        int maxWidth = getWidth() - 8;
         float scale = 1.0f;
         int textWidth = MinecraftClient.getInstance().textRenderer.getWidth(text);
         if (textWidth > maxWidth) {
             scale = (float) maxWidth / textWidth;
-            scale = MathHelper.clamp(scale, 0.4f, 1.0f); // Allow smaller scale for better fitting
-            // If scale is too small, truncate text instead
+            scale = MathHelper.clamp(scale, 0.4f, 1.0f);
             if (scale < 0.4f) {
                 scale = 0.4f;
                 text = MinecraftClient.getInstance().textRenderer.trimToWidth(text, maxWidth) + "...";
             }
         }
 
-        // Draw scaled text
         Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
         context.getMatrices().push();
         context.getMatrices().scale(scale, scale, 1.0f);

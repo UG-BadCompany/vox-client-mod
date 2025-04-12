@@ -23,7 +23,6 @@ public class SearchWindow {
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // Delegate directly to the search field
         return searchField.mouseClicked(mouseX, mouseY, button);
     }
 

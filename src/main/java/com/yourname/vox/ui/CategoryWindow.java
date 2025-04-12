@@ -13,9 +13,9 @@ public class CategoryWindow {
     private final String category;
     private final List<IVoxAddon> addons;
     private final List<CustomVoxButton> buttons;
-    private int x; // Movable
-    private int y; // Movable
-    private final int width = 80; // Widened to 80px
+    private int x;
+    private int y;
+    private final int width = 80;
     private final int height = 400;
     private int scrollOffset = 0;
     private int maxScroll = 0;
@@ -32,24 +32,21 @@ public class CategoryWindow {
         this.y = y;
         this.buttons = new ArrayList<>();
 
-        int buttonY = titleBarHeight; // Relative to window's top
+        int buttonY = titleBarHeight;
         for (IVoxAddon addon : addons) {
-            buttons.add(new CustomVoxButton(x + 5, y + buttonY, 70, 14, addon)); // Adjusted width to 70px
-            buttonY += 16; // 14px height + 2px spacing
+            buttons.add(new CustomVoxButton(x + 5, y + buttonY, 70, 14, addon));
+            buttonY += 16;
         }
         maxScroll = Math.max(0, (buttons.size() * 16) - (height - titleBarHeight));
     }
 
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Draw title bar background
-        context.fill(x, y, x + width, y + titleBarHeight, 0xFF1C2526); // Dark blue title bar
-        String displayText = category.length() > 10 ? category.substring(0, 10) + "..." : category; // Adjusted for new width
+        context.fill(x, y, x + width, y + titleBarHeight, 0xFF1C2526);
+        String displayText = category.length() > 10 ? category.substring(0, 10) + "..." : category;
         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, displayText, x + width / 2, y + 4, 0xFFFFFFFF);
 
-        // No background fill for the addon area (transparent)
         context.enableScissor(x, y + titleBarHeight, x + width, y + height);
         for (CustomVoxButton button : buttons) {
-            // Update Y position with scroll offset
             button.setY(button.getY() - scrollOffset);
             if (button.getY() + button.getHeight() >= y + titleBarHeight && button.getY() <= y + height) {
                 button.render(context, mouseX, mouseY, delta);
@@ -94,15 +91,12 @@ public class CategoryWindow {
             newX = MathHelper.clamp(newX, 0, MinecraftClient.getInstance().getWindow().getScaledWidth() - width);
             newY = MathHelper.clamp(newY, 0, MinecraftClient.getInstance().getWindow().getScaledHeight() - height);
 
-            // Calculate the delta movement
             int deltaXMove = newX - x;
             int deltaYMove = newY - y;
 
-            // Update window position
             x = newX;
             y = newY;
 
-            // Move all buttons with the window
             for (CustomVoxButton btn : buttons) {
                 btn.setX(btn.getX() + deltaXMove);
                 btn.setY(btn.getY() + deltaYMove - scrollOffset);
@@ -117,7 +111,6 @@ public class CategoryWindow {
             int previousScrollOffset = scrollOffset;
             scrollOffset = MathHelper.clamp(scrollOffset - (int) (verticalAmount * 20), 0, maxScroll);
             int scrollDelta = scrollOffset - previousScrollOffset;
-            // Update button positions based on scroll delta
             for (CustomVoxButton btn : buttons) {
                 btn.setY(btn.getY() - scrollDelta);
             }

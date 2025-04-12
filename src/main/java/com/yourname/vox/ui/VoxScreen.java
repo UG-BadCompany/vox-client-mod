@@ -28,6 +28,7 @@ public class VoxScreen extends Screen {
     private int dragOffsetX;
     private int previousWidth = 0;
     private int previousHeight = 0;
+    private VoxButton configButton; // Added for editor access
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
@@ -35,47 +36,48 @@ public class VoxScreen extends Screen {
     }
 
     private void updateControlPosition() {
-        // Center the logo horizontally
         controlX = (width - controlWidth) / 2;
     }
 
     @Override
     protected void init() {
-        // Check if window size has changed
         if (width != previousWidth || height != previousHeight) {
             previousWidth = width;
             previousHeight = height;
             updateControlPosition();
-            categoryWindows.clear(); // Clear and re-add windows to reposition them
+            categoryWindows.clear();
         }
 
-        // Position search bar on the right
         searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, width - 130, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
         searchField.setMaxLength(32);
-        searchField.setEditable(true); // Ensure it’s editable
-        searchField.setVisible(true); // Ensure it’s visible
-        searchField.setFocusUnlocked(true); // Allow focusing
+        searchField.setEditable(true);
+        searchField.setVisible(true);
+        searchField.setFocusUnlocked(true);
         searchField.setChangedListener(this::updateSearch);
-        addDrawableChild(searchField); // Add to screen’s children
+        addDrawableChild(searchField);
         searchWindow = new SearchWindow(theme, width - 130, controlY + controlHeight + 10, searchField);
+
+        // Add config button
+        configButton = new VoxButton(width - 60, height - 30, theme, "Config");
+        configButton.setMessage(Text.literal("Config"));
+        addDrawableChild(configButton);
 
         if (categoryWindows.isEmpty()) {
             List<IVoxAddon> allAddons = AddonLoader.getAddons();
             String[] categories = {"Chat", "Combat", "Miscellaneous", "Movement", "Player", "Render", "World"};
 
-            int windowsPerRow = (int) Math.ceil(width / 85.0); // 80px width + 5px spacing
+            int windowsPerRow = (int) Math.ceil(width / 85.0);
             int totalRows = (int) Math.ceil((double) categories.length / windowsPerRow);
             int totalGridWidth = windowsPerRow * 85 - 5;
             int totalGridHeight = totalRows * 400 - 5;
-            int windowX = (width - totalGridWidth) / 2; // Center the grid horizontally
-            int windowY = (height - totalGridHeight) / 2; // Center the grid vertically
+            int windowX = (width - totalGridWidth) / 2;
+            int windowY = (height - totalGridHeight) / 2;
             int row = 0;
             int col = 0;
 
-            // Adjust windowX to ensure the grid is centered even with fewer columns
             int actualColumns = Math.min(categories.length, windowsPerRow);
             int actualGridWidth = actualColumns * 85 - 5;
-            windowX = (width - actualGridWidth) / 2; // Recalculate to center the actual grid width
+            windowX = (width - actualGridWidth) / 2;
 
             for (String category : categories) {
                 List<IVoxAddon> addons = category.equals("All") ? allAddons : allAddons.stream()
@@ -119,23 +121,25 @@ public class VoxScreen extends Screen {
         for (CategoryWindow window : categoryWindows) {
             window.render(context, mouseX, mouseY, delta);
         }
+        configButton.render(context, mouseX, mouseY, delta); // Render config button
     }
 
     @Override
     public void resize(MinecraftClient client, int width, int height) {
         super.resize(client, width, height);
-        // Force re-initialization to adjust positions
         this.init();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // Ensure the search field can receive focus
         if (searchField.mouseClicked(mouseX, mouseY, button)) {
-            setFocused(searchField); // Set focus to the search field
+            setFocused(searchField);
             return true;
         }
-
+        if (configButton.mouseClicked(mouseX, mouseY, button)) {
+            MinecraftClient.getInstance().setScreen(new VoxConfigScreen(this, theme, new VoxConfigManager(theme)));
+            return true;
+        }
         if (button == 0) {
             if (mouseX >= controlX && mouseX <= controlX + controlWidth && mouseY >= controlY && mouseY <= controlY + controlHeight) {
                 draggingLogo = true;
