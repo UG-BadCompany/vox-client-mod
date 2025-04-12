@@ -18,7 +18,9 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class VoxConfigScreen extends Screen {
@@ -42,6 +44,12 @@ public class VoxConfigScreen extends Screen {
     private boolean isBorderColorWheel = false;
     private boolean showCategories = true;
     private boolean showProperties = false;
+    private boolean showLayers = false;
+    private boolean snapToGrid = false;
+    private Map<String, List<int[]>> colorPresets; // elementId -> List of [r, g, b, opacity]
+    private List<List<UIElement>> groups;
+    private boolean draggingLayer = false;
+    private int draggedLayerIndex = -1;
 
     private static final int[] COLOR_OPTIONS = {
             0xFF000000, 0xFFFFFFFF, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, 0xFF00FFFF, 0xFFFF00FF,
@@ -59,6 +67,8 @@ public class VoxConfigScreen extends Screen {
         this.propertyButtons = new ArrayList<>();
         this.undoStack = new ArrayDeque<>();
         this.redoStack = new ArrayDeque<>();
+        this.colorPresets = new HashMap<>();
+        this.groups = new ArrayList<>();
     }
 
     private static class UIElement {
@@ -75,6 +85,7 @@ public class VoxConfigScreen extends Screen {
         int borderR, borderG, borderB;
         boolean visible;
         int zIndex;
+        String easing;
 
         UIElement(String id, String type, double x, double y, double width, double height) {
             this.id = id;
@@ -97,6 +108,7 @@ public class VoxConfigScreen extends Screen {
             this.borderB = 255;
             this.visible = true;
             this.zIndex = 0;
+            this.easing = "linear";
         }
 
         JsonObject toJson() {
@@ -121,6 +133,7 @@ public class VoxConfigScreen extends Screen {
             json.addProperty("borderB", borderB);
             json.addProperty("visible", visible);
             json.addProperty("zIndex", zIndex);
+            json.addProperty("easing", easing);
             return json;
         }
 
@@ -143,6 +156,7 @@ public class VoxConfigScreen extends Screen {
             borderB = json.get("borderB").getAsInt();
             visible = json.get("visible").getAsBoolean();
             zIndex = json.get("zIndex").getAsInt();
+            easing = json.has("easing") ? json.get("easing").getAsString() : "linear";
         }
     }
 
@@ -167,7 +181,7 @@ public class VoxConfigScreen extends Screen {
         undoStack.clear();
         redoStack.clear();
         showColorWheel = false;
-        // Preserve showCategories and showProperties states unless resetting
+        showLayers = false;
         if (selectedElement == null) {
             showCategories = true;
             showProperties = false;
@@ -188,6 +202,7 @@ public class VoxConfigScreen extends Screen {
             selectedElement = null;
             showCategories = true;
             showProperties = false;
+            showLayers = false;
             init();
         }));
         buttonY += 25;
@@ -218,119 +233,6 @@ public class VoxConfigScreen extends Screen {
         maxElementListOffset = Math.max(0, elements.size() * 20 - 180);
     }
 
-    private void updatePropertiesPanel() {
-        sliders.clear();
-        propertyButtons.clear();
-        if (selectedElement == null) return;
-
-        int sliderX = 10, sliderY = 30, buttonX = 110;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Back"), btn -> {
-            showProperties = false;
-            showCategories = true;
-            selectedElement = null;
-            init();
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, width, selectedElement.x, v -> {
-            applyEdit("x", selectedElement.x, selectedElement.x = v);
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
-            applyEdit("x", selectedElement.x, selectedElement.x = Math.max(0, selectedElement.x - 0.5));
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
-            applyEdit("x", selectedElement.x, selectedElement.x = Math.min(width - selectedElement.width, selectedElement.x + 0.5));
-            updateVoxScreen();
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, height, selectedElement.y, v -> {
-            applyEdit("y", selectedElement.y, selectedElement.y = v);
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
-            applyEdit("y", selectedElement.y, selectedElement.y = Math.max(0, selectedElement.y - 0.5));
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
-            applyEdit("y", selectedElement.y, selectedElement.y = Math.min(height - selectedElement.height, selectedElement.y + 0.5));
-            updateVoxScreen();
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 500, selectedElement.width, v -> {
-            applyEdit("width", selectedElement.width, selectedElement.width = v);
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
-            applyEdit("width", selectedElement.width, selectedElement.width = Math.max(selectedElement.type.equals("window") ? 50 : 20, selectedElement.width - 0.5));
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
-            applyEdit("width", selectedElement.width, selectedElement.width = Math.min(500, selectedElement.width + 0.5));
-            updateVoxScreen();
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 600, selectedElement.height, v -> {
-            applyEdit("height", selectedElement.height, selectedElement.height = v);
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
-            applyEdit("height", selectedElement.height, selectedElement.height = Math.max(selectedElement.type.equals("window") ? 50 : 20, selectedElement.height - 0.5));
-            updateVoxScreen();
-        }));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
-            applyEdit("height", selectedElement.height, selectedElement.height = Math.min(600, selectedElement.height + 0.5));
-            updateVoxScreen();
-        }));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Color"), btn -> {
-            showColorWheel = !showColorWheel;
-            isBorderColorWheel = false;
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.0, 1.0, selectedElement.opacity, v -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = v.floatValue())));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = Math.max(0.0f, selectedElement.opacity - 0.1f))));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = Math.min(1.0f, selectedElement.opacity + 0.1f))));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.5, 2.0, selectedElement.fontSize, v -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = v.floatValue())));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = Math.max(0.5f, selectedElement.fontSize - 0.1f))));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = Math.min(2.0f, selectedElement.fontSize + 0.1f))));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 40, 20, Text.literal("Left"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "left")));
-        propertyButtons.add(new VoxButton(theme, sliderX + 45, sliderY, 40, 20, Text.literal("Center"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "center")));
-        propertyButtons.add(new VoxButton(theme, sliderX + 90, sliderY, 40, 20, Text.literal("Right"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "right")));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, 10, selectedElement.spacing, v -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = v.intValue())));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = Math.max(0, selectedElement.spacing - 1))));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = Math.min(10, selectedElement.spacing + 1))));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Border: " + (selectedElement.border ? "On" : "Off")), btn -> {
-            applyEdit("border", selectedElement.border, selectedElement.border = !selectedElement.border);
-            btn.setMessage(Text.literal("Border: " + (selectedElement.border ? "On" : "Off")));
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 1, 5, selectedElement.borderThickness, v -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = v.intValue())));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = Math.max(1, selectedElement.borderThickness - 1))));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = Math.min(5, selectedElement.borderThickness + 1))));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Border Color"), btn -> {
-            showColorWheel = !showColorWheel;
-            isBorderColorWheel = true;
-        }));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")), btn -> {
-            applyEdit("visible", selectedElement.visible, selectedElement.visible = !selectedElement.visible);
-            btn.setMessage(Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")));
-        }));
-        sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, -10, 10, selectedElement.zIndex, v -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = v.intValue())));
-        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = Math.max(-10, selectedElement.zIndex - 1))));
-        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = Math.min(10, selectedElement.zIndex + 1))));
-
-        sliders.forEach(this::addDrawableChild);
-        propertyButtons.forEach(this::addDrawableChild);
-    }
-
     private void updateVoxScreen() {
         if (selectedElement == null) return;
         if (selectedElement.id.equals("logo")) {
@@ -346,13 +248,224 @@ public class VoxConfigScreen extends Screen {
         parent.updateElementColor(selectedElement.id, selectedElement.r, selectedElement.g, selectedElement.b);
     }
 
+    private void updatePropertiesPanel() {
+        sliders.clear();
+        propertyButtons.clear();
+        if (selectedElement == null) return;
+
+        int sliderX = 10, sliderY = 50, buttonX = 110;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Back"), btn -> {
+            showProperties = false;
+            showCategories = true;
+            selectedElement = null;
+            init();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, width, selectedElement.x, v -> {
+            selectedElement.x = snapToGrid ? Math.round(v / 10.0) * 10 : v;
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
+            selectedElement.x = Math.max(0, selectedElement.x - 0.5);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
+            selectedElement.x = Math.min(width - selectedElement.width, selectedElement.x + 0.5);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, height, selectedElement.y, v -> {
+            selectedElement.y = snapToGrid ? Math.round(v / 10.0) * 10 : v;
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
+            selectedElement.y = Math.max(0, selectedElement.y - 0.5);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
+            selectedElement.y = Math.min(height - selectedElement.height, selectedElement.y + 0.5);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 500, selectedElement.width, v -> {
+            selectedElement.width = snapToGrid ? Math.round(v / 10.0) * 10 : v;
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
+            selectedElement.width = Math.max(selectedElement.type.equals("window") ? 50 : 20, selectedElement.width - 0.5);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
+            selectedElement.width = Math.min(500, selectedElement.width + 0.5);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 600, selectedElement.height, v -> {
+            selectedElement.height = snapToGrid ? Math.round(v / 10.0) * 10 : v;
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.5"), btn -> {
+            selectedElement.height = Math.max(selectedElement.type.equals("window") ? 50 : 20, selectedElement.height - 0.5);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.5"), btn -> {
+            selectedElement.height = Math.min(600, selectedElement.height + 0.5);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Color"), btn -> {
+            showColorWheel = !showColorWheel;
+            isBorderColorWheel = false;
+        }));
+        propertyButtons.add(new VoxButton(theme, sliderX + 85, sliderY, 40, 20, Text.literal("Save Color"), btn -> {
+            List<int[]> presets = colorPresets.computeIfAbsent(selectedElement.id, k -> new ArrayList<>());
+            if (presets.size() < 5) {
+                presets.add(new int[]{selectedElement.r, selectedElement.g, selectedElement.b, (int) (selectedElement.opacity * 255)});
+            }
+        }));
+        sliderY += 25;
+        for (int i = 0; i < 5; i++) {
+            int presetIndex = i;
+            propertyButtons.add(new VoxButton(theme, sliderX + i * 25, sliderY, 20, 20, Text.literal(String.valueOf(i + 1)), btn -> {
+                List<int[]> presets = colorPresets.getOrDefault(selectedElement.id, new ArrayList<>());
+                if (presetIndex < presets.size()) {
+                    int[] preset = presets.get(presetIndex);
+                    selectedElement.r = preset[0];
+                    selectedElement.g = preset[1];
+                    selectedElement.b = preset[2];
+                    selectedElement.opacity = preset[3] / 255.0f;
+                    updateVoxScreen();
+                }
+            }));
+        }
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.0, 1.0, selectedElement.opacity, v -> {
+            selectedElement.opacity = v.floatValue();
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> {
+            selectedElement.opacity = Math.max(0.0f, selectedElement.opacity - 0.1f);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> {
+            selectedElement.opacity = Math.min(1.0f, selectedElement.opacity + 0.1f);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.5, 2.0, selectedElement.fontSize, v -> {
+            selectedElement.fontSize = v.floatValue();
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> {
+            selectedElement.fontSize = Math.max(0.5f, selectedElement.fontSize - 0.1f);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> {
+            selectedElement.fontSize = Math.min(2.0f, selectedElement.fontSize + 0.1f);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 40, 20, Text.literal("Left"), btn -> {
+            selectedElement.textAlign = "left";
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, sliderX + 45, sliderY, 40, 20, Text.literal("Center"), btn -> {
+            selectedElement.textAlign = "center";
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, sliderX + 90, sliderY, 40, 20, Text.literal("Right"), btn -> {
+            selectedElement.textAlign = "right";
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, 10, selectedElement.spacing, v -> {
+            selectedElement.spacing = v.intValue();
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> {
+            selectedElement.spacing = Math.max(0, selectedElement.spacing - 1);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> {
+            selectedElement.spacing = Math.min(10, selectedElement.spacing + 1);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Border: " + (selectedElement.border ? "On" : "Off")), btn -> {
+            selectedElement.border = !selectedElement.border;
+            btn.setMessage(Text.literal("Border: " + (selectedElement.border ? "On" : "Off")));
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 1, 5, selectedElement.borderThickness, v -> {
+            selectedElement.borderThickness = v.intValue();
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> {
+            selectedElement.borderThickness = Math.max(1, selectedElement.borderThickness - 1);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> {
+            selectedElement.borderThickness = Math.min(5, selectedElement.borderThickness + 1);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Border Color"), btn -> {
+            showColorWheel = !showColorWheel;
+            isBorderColorWheel = true;
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")), btn -> {
+            selectedElement.visible = !selectedElement.visible;
+            btn.setMessage(Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")));
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, -10, 10, selectedElement.zIndex, v -> {
+            selectedElement.zIndex = v.intValue();
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> {
+            selectedElement.zIndex = Math.max(-10, selectedElement.zIndex - 1);
+            updateVoxScreen();
+        }));
+        propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> {
+            selectedElement.zIndex = Math.min(10, selectedElement.zIndex + 1);
+            updateVoxScreen();
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Snap: " + (snapToGrid ? "On" : "Off")), btn -> {
+            snapToGrid = !snapToGrid;
+            btn.setMessage(Text.literal("Snap: " + (snapToGrid ? "On" : "Off")));
+        }));
+        sliderY += 25;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Easing: " + selectedElement.easing), btn -> {
+            String[] easings = {"linear", "ease-in", "ease-out", "ease-in-out"};
+            int currentIndex = -1;
+            for (int i = 0; i < easings.length; i++) {
+                if (easings[i].equals(selectedElement.easing)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            selectedElement.easing = easings[(currentIndex + 1) % easings.length];
+            btn.setMessage(Text.literal("Easing: " + selectedElement.easing));
+            updateVoxScreen();
+        }));
+
+        sliders.forEach(this::addDrawableChild);
+        propertyButtons.forEach(this::addDrawableChild);
+    }
+
     private void applyEdit(String property, Object oldValue, Object newValue) {
         if (!oldValue.equals(newValue)) {
-            JsonObject before = selectedElement.toJson();
-            JsonObject after = selectedElement.toJson();
+            JsonObject before = selectedElement != null ? selectedElement.toJson() : new JsonObject();
+            JsonObject after = selectedElement != null ? selectedElement.toJson() : new JsonObject();
             undoStack.push(new EditAction(selectedElement, before, after));
             redoStack.clear();
-            updatePropertiesPanel();
+            if (showProperties) {
+                updatePropertiesPanel();
+            }
         }
     }
 
@@ -382,8 +495,8 @@ public class VoxConfigScreen extends Screen {
         selectedElement = null;
         showProperties = false;
         showCategories = true;
+        showLayers = false;
         init();
-        // Reset VoxScreen elements
         parent.updateLogoPosition(width / 2 - 50, 10);
         parent.updateLogoSize(100, 50);
         parent.updateSearchPosition(width - 130, 70);
@@ -510,10 +623,29 @@ public class VoxConfigScreen extends Screen {
                     }
                 }
                 context.disableScissor();
+                context.drawTextWithShadow(textRenderer, "Layers", 20, listY + 205, theme.getTextColor());
+            }
+
+            if (showLayers) {
+                int listY = 30;
+                context.fill(10, listY, 150, listY + 200, 0xC0333333);
+                context.enableScissor(10, listY, 150, listY + 200);
+                for (int i = 0; i < elements.size(); i++) {
+                    UIElement element = elements.get(i);
+                    int itemY = listY + 10 + i * 20 - elementListOffset;
+                    if (itemY >= listY && itemY <= listY + 180) {
+                        int textColor = theme.getTextColor();
+                        if (mouseX >= 10 && mouseX <= 150 && mouseY >= itemY && mouseY <= itemY + 20) {
+                            textColor = theme.getTabActive();
+                            context.fill(10, itemY, 150, itemY + 20, theme.getButtonHover());
+                        }
+                        context.drawTextWithShadow(textRenderer, element.id + " (z:" + element.zIndex + ")", 20, itemY, textColor);
+                    }
+                }
+                context.disableScissor();
             }
 
             if (showProperties && selectedElement != null) {
-                // Render properties panel
                 context.fill(10, 30, 150, 380, 0xC0333333);
                 context.drawTextWithShadow(textRenderer, "Properties: " + selectedElement.id, 20, 40, theme.getTextColor());
                 for (SliderWidget slider : sliders) {
@@ -524,7 +656,6 @@ public class VoxConfigScreen extends Screen {
                 }
             }
 
-            // Render color wheel if active
             if (showColorWheel) {
                 int centerX = 160, centerY = 130;
                 int radius = 50;
@@ -546,7 +677,6 @@ public class VoxConfigScreen extends Screen {
             }
         }
 
-        // Render control buttons
         for (VoxButton button : controlButtons) {
             button.render(context, mouseX, mouseY, delta);
         }
@@ -586,13 +716,11 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (editorMode && !previewMode) {
-            // Handle control buttons first
             for (VoxButton btn : controlButtons) {
                 if (btn.mouseClicked(mouseX, mouseY, button)) return true;
             }
 
             if (showProperties) {
-                // Handle properties panel interactions
                 for (VoxButton btn : propertyButtons) {
                     if (btn.mouseClicked(mouseX, mouseY, button)) return true;
                 }
@@ -612,29 +740,34 @@ public class VoxConfigScreen extends Screen {
                         double saturation = distance / radius;
                         int[] rgb = hsvToRgb(hue, saturation, 1.0);
                         if (selectedElement != null) {
-                            JsonObject before = selectedElement.toJson();
                             if (isBorderColorWheel) {
                                 selectedElement.borderR = rgb[0];
                                 selectedElement.borderG = rgb[1];
                                 selectedElement.borderB = rgb[2];
-                                applyEdit("borderColor", before, selectedElement.toJson());
                             } else {
                                 selectedElement.r = rgb[0];
                                 selectedElement.g = rgb[1];
                                 selectedElement.b = rgb[2];
-                                applyEdit("color", before, selectedElement.toJson());
                             }
                             updateVoxScreen();
-                            showColorWheel = false;
                             updatePropertiesPanel();
                         }
+                        return true;
+                    } else {
+                        showColorWheel = false;
+                        updatePropertiesPanel();
                         return true;
                     }
                 }
             }
 
             if (showCategories) {
-                // Handle category list clicks
+                if (mouseX >= 10 && mouseX <= 150 && mouseY >= 235 && mouseY <= 245) {
+                    showCategories = false;
+                    showLayers = true;
+                    init();
+                    return true;
+                }
                 if (mouseX >= 10 && mouseX <= 150 && mouseY >= 30 && mouseY <= 230) {
                     int listY = 30;
                     int index = (int) ((mouseY - listY - 10 + elementListOffset) / 20);
@@ -649,9 +782,27 @@ public class VoxConfigScreen extends Screen {
                 }
             }
 
-            // Handle direct element clicks on the screen
+            if (showLayers) {
+                if (mouseX >= 10 && mouseX <= 150 && mouseY >= 30 && mouseY <= 230) {
+                    int listY = 30;
+                    int index = (int) ((mouseY - listY - 10 + elementListOffset) / 20);
+                    if (index >= 0 && index < elements.size()) {
+                        draggingLayer = true;
+                        draggedLayerIndex = index;
+                        return true;
+                    }
+                }
+            }
+
             for (UIElement element : elements) {
                 if (element.visible && mouseX >= element.x && mouseX <= element.x + element.width && mouseY >= element.y && mouseY <= element.y + element.height) {
+                    List<UIElement> group = groups.stream().filter(g -> g.contains(element)).findFirst().orElse(null);
+                    if (group != null) {
+                        for (UIElement groupedElement : group) {
+                            groupedElement.x += mouseX - dragOffsetX - element.x;
+                            groupedElement.y += mouseY - dragOffsetY - element.y;
+                        }
+                    }
                     selectedElement = element;
                     dragging = true;
                     dragOffsetX = mouseX - element.x;
@@ -670,12 +821,42 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (editorMode && dragging && selectedElement != null) {
-            JsonObject before = selectedElement.toJson();
-            selectedElement.x = MathHelper.clamp(mouseX - dragOffsetX, 0, width - selectedElement.width);
-            selectedElement.y = MathHelper.clamp(mouseY - dragOffsetY, 0, height - selectedElement.height);
-            applyEdit("position", before, selectedElement.toJson());
+            double newX = mouseX - dragOffsetX;
+            double newY = mouseY - dragOffsetY;
+            if (snapToGrid) {
+                newX = Math.round(newX / 10.0) * 10;
+                newY = Math.round(newY / 10.0) * 10;
+            }
+            selectedElement.x = MathHelper.clamp(newX, 0, width - selectedElement.width);
+            selectedElement.y = MathHelper.clamp(newY, 0, height - selectedElement.height);
+            List<UIElement> group = groups.stream().filter(g -> g.contains(selectedElement)).findFirst().orElse(null);
+            if (group != null) {
+                double dx = selectedElement.x - (mouseX - dragOffsetX);
+                double dy = selectedElement.y - (mouseY - dragOffsetY);
+                for (UIElement groupedElement : group) {
+                    if (groupedElement != selectedElement) {
+                        groupedElement.x += dx;
+                        groupedElement.y += dy;
+                    }
+                }
+            }
             updateVoxScreen();
             updatePropertiesPanel();
+            return true;
+        }
+        if (editorMode && draggingLayer && draggedLayerIndex >= 0) {
+            int listY = 30;
+            int newIndex = (int) ((mouseY - listY - 10 + elementListOffset) / 20);
+            newIndex = MathHelper.clamp(newIndex, 0, elements.size() - 1);
+            if (newIndex != draggedLayerIndex) {
+                UIElement movedElement = elements.remove(draggedLayerIndex);
+                elements.add(newIndex, movedElement);
+                for (int i = 0; i < elements.size(); i++) {
+                    elements.get(i).zIndex = elements.size() - i;
+                }
+                draggedLayerIndex = newIndex;
+                init();
+            }
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
@@ -684,12 +865,14 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         dragging = false;
+        draggingLayer = false;
+        draggedLayerIndex = -1;
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (editorMode && showCategories && mouseX >= 10 && mouseX <= 150 && mouseY >= 30 && mouseY <= 230) {
+        if (editorMode && (showCategories || showLayers) && mouseX >= 10 && mouseX <= 150 && mouseY >= 30 && mouseY <= 230) {
             elementListOffset = MathHelper.clamp(elementListOffset - (int) (verticalAmount * 20), 0, maxElementListOffset);
             return true;
         }
@@ -699,37 +882,39 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (editorMode && selectedElement != null) {
-            JsonObject before = selectedElement.toJson();
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
             boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
             if (keyCode == GLFW.GLFW_KEY_LEFT) {
-                selectedElement.x = Math.max(0, selectedElement.x - (shift ? 0.5 : 1));
-                applyEdit("x", before, selectedElement.toJson());
+                double newX = selectedElement.x - (shift ? 0.5 : 1);
+                if (snapToGrid) newX = Math.round(newX / 10.0) * 10;
+                selectedElement.x = Math.max(0, newX);
                 updateVoxScreen();
                 updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_RIGHT) {
-                selectedElement.x = Math.min(width - selectedElement.width, selectedElement.x + (shift ? 0.5 : 1));
-                applyEdit("x", before, selectedElement.toJson());
+                double newX = selectedElement.x + (shift ? 0.5 : 1);
+                if (snapToGrid) newX = Math.round(newX / 10.0) * 10;
+                selectedElement.x = Math.min(width - selectedElement.width, newX);
                 updateVoxScreen();
                 updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_UP) {
-                selectedElement.y = Math.max(0, selectedElement.y - (shift ? 0.5 : 1));
-                applyEdit("y", before, selectedElement.toJson());
+                double newY = selectedElement.y - (shift ? 0.5 : 1);
+                if (snapToGrid) newY = Math.round(newY / 10.0) * 10;
+                selectedElement.y = Math.max(0, newY);
                 updateVoxScreen();
                 updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_DOWN) {
-                selectedElement.y = Math.min(height - selectedElement.height, selectedElement.y + (shift ? 0.5 : 1));
-                applyEdit("y", before, selectedElement.toJson());
+                double newY = selectedElement.y + (shift ? 0.5 : 1);
+                if (snapToGrid) newY = Math.round(newY / 10.0) * 10;
+                selectedElement.y = Math.min(height - selectedElement.height, newY);
                 updateVoxScreen();
                 updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_G && ctrl) {
                 selectedElement.x = Math.round(selectedElement.x / 10.0) * 10;
                 selectedElement.y = Math.round(selectedElement.y / 10.0) * 10;
-                applyEdit("position", before, selectedElement.toJson());
                 updateVoxScreen();
                 updatePropertiesPanel();
                 return true;
