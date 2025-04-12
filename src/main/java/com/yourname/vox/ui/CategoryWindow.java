@@ -15,8 +15,8 @@ public class CategoryWindow {
     private final List<CustomVoxButton> buttons;
     private int x;
     private int y;
-    private final int width = 80;
-    private final int height = 400;
+    private int width = 80;
+    private int height = 400;
     private int scrollOffset = 0;
     private int maxScroll = 0;
     private boolean dragging = false;
@@ -130,5 +130,44 @@ public class CategoryWindow {
         int visibleButtons = (int) buttons.stream().filter(CustomVoxButton::isVisible).count();
         maxScroll = Math.max(0, (visibleButtons * 16) - (height - titleBarHeight));
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxScroll);
+    }
+
+    // Public methods for real-time updates
+    public String getCategory() {
+        return category;
+    }
+
+    public void setPosition(int x, int y) {
+        int deltaX = x - this.x;
+        int deltaY = y - this.y;
+        this.x = MathHelper.clamp(x, 0, MinecraftClient.getInstance().getWindow().getScaledWidth() - width);
+        this.y = MathHelper.clamp(y, 0, MinecraftClient.getInstance().getWindow().getScaledHeight() - height);
+        for (CustomVoxButton btn : buttons) {
+            btn.setX(btn.getX() + deltaX);
+            btn.setY(btn.getY() + deltaY - scrollOffset);
+        }
+    }
+
+    public void setSize(int width, int height) {
+        this.width = Math.max(50, Math.min(500, width));
+        this.height = Math.max(50, Math.min(600, height));
+        maxScroll = Math.max(0, (buttons.size() * 16) - (height - titleBarHeight));
+        scrollOffset = MathHelper.clamp(scrollOffset, 0, maxScroll);
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public int getY() {
+        return y;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
     }
 }

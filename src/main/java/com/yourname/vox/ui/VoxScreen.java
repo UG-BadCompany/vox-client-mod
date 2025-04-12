@@ -19,16 +19,16 @@ public class VoxScreen extends Screen {
     private final List<CategoryWindow> categoryWindows = new ArrayList<>();
     private SearchWindow searchWindow;
     private TextFieldWidget searchField;
-    private final int controlWidth = 100;
-    private final int controlHeight = 50;
+    private int controlWidth = 100;
+    private int controlHeight = 50;
     private int controlX;
-    private final int controlY = 10;
+    private int controlY = 10;
     private Identifier logoTexture = new Identifier("vox", "images/logo.png");
     private boolean draggingLogo = false;
     private int dragOffsetX;
     private int previousWidth = 0;
     private int previousHeight = 0;
-    private VoxButton configButton; // Added for editor access
+    private VoxButton configButton;
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
@@ -57,7 +57,6 @@ public class VoxScreen extends Screen {
         addDrawableChild(searchField);
         searchWindow = new SearchWindow(theme, width - 130, controlY + controlHeight + 10, searchField);
 
-        // Add config button
         configButton = new VoxButton(width - 60, height - 30, theme, "Config");
         configButton.setMessage(Text.literal("Config"));
         addDrawableChild(configButton);
@@ -72,8 +71,7 @@ public class VoxScreen extends Screen {
             int totalGridHeight = totalRows * 400 - 5;
             int windowX = (width - totalGridWidth) / 2;
             int windowY = (height - totalGridHeight) / 2;
-            int row = 0;
-            int col = 0;
+            int row = 0, col = 0;
 
             int actualColumns = Math.min(categories.length, windowsPerRow);
             int actualGridWidth = actualColumns * 85 - 5;
@@ -121,7 +119,7 @@ public class VoxScreen extends Screen {
         for (CategoryWindow window : categoryWindows) {
             window.render(context, mouseX, mouseY, delta);
         }
-        configButton.render(context, mouseX, mouseY, delta); // Render config button
+        configButton.render(context, mouseX, mouseY, delta);
     }
 
     @Override
@@ -189,5 +187,81 @@ public class VoxScreen extends Screen {
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    // Public methods for real-time updates
+    public void updateLogoPosition(int x, int y) {
+        this.controlX = MathHelper.clamp(x, 0, width - controlWidth);
+        this.controlY = MathHelper.clamp(y, 0, height - controlHeight);
+    }
+
+    public void updateLogoSize(int width, int height) {
+        this.controlWidth = Math.max(50, Math.min(500, width));
+        this.controlHeight = Math.max(20, Math.min(600, height));
+        updateControlPosition();
+    }
+
+    public void updateSearchPosition(int x, int y) {
+        this.searchField.setX(MathHelper.clamp(x, 0, width - searchField.getWidth()));
+        this.searchField.setY(MathHelper.clamp(y, 0, height - searchField.getHeight()));
+        this.searchWindow = new SearchWindow(theme, searchField.getX(), searchField.getY(), searchField);
+    }
+
+    public void updateSearchSize(int width, int height) {
+        this.searchField.setWidth(Math.max(20, Math.min(500, width)));
+        this.searchField.setHeight(Math.max(20, Math.min(600, height)));
+        this.searchWindow = new SearchWindow(theme, searchField.getX(), searchField.getY(), searchField);
+    }
+
+    public void updateCategoryPosition(String category, int x, int y) {
+        for (CategoryWindow window : categoryWindows) {
+            if (window.getCategory().equals(category)) {
+                window.setPosition(x, y);
+                break;
+            }
+        }
+    }
+
+    public void updateCategorySize(String category, int width, int height) {
+        for (CategoryWindow window : categoryWindows) {
+            if (window.getCategory().equals(category)) {
+                window.setSize(Math.max(50, Math.min(500, width)), Math.max(50, Math.min(600, height)));
+                break;
+            }
+        }
+    }
+
+    public void updateElementColor(String id, int r, int g, int b) {
+        for (CategoryWindow window : categoryWindows) {
+            if (window.getCategory().equals(id)) {
+                // Update category window color logic here if applicable
+                break;
+            }
+        }
+        // Update theme colors if needed
+    }
+
+    public List<CategoryWindow> getCategoryWindows() {
+        return categoryWindows;
+    }
+
+    public TextFieldWidget getSearchField() {
+        return searchField;
+    }
+
+    public int getLogoX() {
+        return controlX;
+    }
+
+    public int getLogoY() {
+        return controlY;
+    }
+
+    public int getLogoWidth() {
+        return controlWidth;
+    }
+
+    public int getLogoHeight() {
+        return controlHeight;
     }
 }
