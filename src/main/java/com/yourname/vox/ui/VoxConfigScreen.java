@@ -216,8 +216,8 @@ public class VoxConfigScreen extends Screen {
         colorPickerButtons.clear();
         if (selectedElement == null) return;
 
-        int sliderX = 20, sliderY = 100, buttonX = 130;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 0, width, selectedElement.x, v -> {
+        int sliderX = width - 150, sliderY = 30, buttonX = width - 40; // Positioned on far right
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, width, selectedElement.x, v -> {
             applyEdit("x", selectedElement.x, selectedElement.x = v.intValue());
             updateVoxScreen();
         }));
@@ -230,7 +230,7 @@ public class VoxConfigScreen extends Screen {
             updateVoxScreen();
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 0, height, selectedElement.y, v -> {
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, height, selectedElement.y, v -> {
             applyEdit("y", selectedElement.y, selectedElement.y = v.intValue());
             updateVoxScreen();
         }));
@@ -243,7 +243,7 @@ public class VoxConfigScreen extends Screen {
             updateVoxScreen();
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, selectedElement.type.equals("window") ? 50 : 20, 500, selectedElement.width, v -> {
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 500, selectedElement.width, v -> {
             applyEdit("width", selectedElement.width, selectedElement.width = v.intValue());
             updateVoxScreen();
         }));
@@ -256,7 +256,7 @@ public class VoxConfigScreen extends Screen {
             updateVoxScreen();
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, selectedElement.type.equals("window") ? 50 : 20, 600, selectedElement.height, v -> {
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 600, selectedElement.height, v -> {
             applyEdit("height", selectedElement.height, selectedElement.height = v.intValue());
             updateVoxScreen();
         }));
@@ -269,47 +269,47 @@ public class VoxConfigScreen extends Screen {
             updateVoxScreen();
         }));
         sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 100, 20, Text.literal("Pick Color"), btn -> {
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Color"), btn -> {
             showColorPicker = !showColorPicker;
             initColorPicker();
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 0.0, 1.0, selectedElement.opacity, v -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = v.floatValue())));
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.0, 1.0, selectedElement.opacity, v -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = v.floatValue())));
         propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = Math.max(0.0f, selectedElement.opacity - 0.1f))));
         propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> applyEdit("opacity", selectedElement.opacity, selectedElement.opacity = Math.min(1.0f, selectedElement.opacity + 0.1f))));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 0.5, 2.0, selectedElement.fontSize, v -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = v.floatValue())));
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.5, 2.0, selectedElement.fontSize, v -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = v.floatValue())));
         propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-0.1"), btn -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = Math.max(0.5f, selectedElement.fontSize - 0.1f))));
         propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+0.1"), btn -> applyEdit("fontSize", selectedElement.fontSize, selectedElement.fontSize = Math.min(2.0f, selectedElement.fontSize + 0.1f))));
         sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 50, 20, Text.literal("Left"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "left")));
-        propertyButtons.add(new VoxButton(theme, sliderX + 55, sliderY, 50, 20, Text.literal("Center"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "center")));
-        propertyButtons.add(new VoxButton(theme, sliderX + 110, sliderY, 50, 20, Text.literal("Right"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "right")));
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 40, 20, Text.literal("Left"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "left")));
+        propertyButtons.add(new VoxButton(theme, sliderX + 45, sliderY, 40, 20, Text.literal("Center"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "center")));
+        propertyButtons.add(new VoxButton(theme, sliderX + 90, sliderY, 40, 20, Text.literal("Right"), btn -> applyEdit("textAlign", selectedElement.textAlign, selectedElement.textAlign = "right")));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 0, 10, selectedElement.spacing, v -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = v.intValue())));
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, 10, selectedElement.spacing, v -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = v.intValue())));
         propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = Math.max(0, selectedElement.spacing - 1))));
         propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("spacing", selectedElement.spacing, selectedElement.spacing = Math.min(10, selectedElement.spacing + 1))));
         sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 100, 20, Text.literal("Border: " + (selectedElement.border ? "On" : "Off")), btn -> {
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Border: " + (selectedElement.border ? "On" : "Off")), btn -> {
             applyEdit("border", selectedElement.border, selectedElement.border = !selectedElement.border);
             btn.setMessage(Text.literal("Border: " + (selectedElement.border ? "On" : "Off")));
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, 1, 5, selectedElement.borderThickness, v -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = v.intValue())));
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 1, 5, selectedElement.borderThickness, v -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = v.intValue())));
         propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = Math.max(1, selectedElement.borderThickness - 1))));
         propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("borderThickness", selectedElement.borderThickness, selectedElement.borderThickness = Math.min(5, selectedElement.borderThickness + 1))));
         sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 100, 20, Text.literal("Pick Border Color"), btn -> {
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Border Color"), btn -> {
             showColorPicker = !showColorPicker;
             initBorderColorPicker();
         }));
         sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 100, 20, Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")), btn -> {
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")), btn -> {
             applyEdit("visible", selectedElement.visible, selectedElement.visible = !selectedElement.visible);
             btn.setMessage(Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")));
         }));
         sliderY += 25;
-        sliders.add(new SliderWidget(theme, sliderX, sliderY, 100, 20, -10, 10, selectedElement.zIndex, v -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = v.intValue())));
+        sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, -10, 10, selectedElement.zIndex, v -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = v.intValue())));
         propertyButtons.add(new VoxButton(theme, buttonX, sliderY, 20, 20, Text.literal("-1"), btn -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = Math.max(-10, selectedElement.zIndex - 1))));
         propertyButtons.add(new VoxButton(theme, buttonX + 25, sliderY, 20, 20, Text.literal("+1"), btn -> applyEdit("zIndex", selectedElement.zIndex, selectedElement.zIndex = Math.min(10, selectedElement.zIndex + 1))));
 
@@ -321,7 +321,7 @@ public class VoxConfigScreen extends Screen {
         colorPickerButtons.clear();
         if (!showColorPicker) return;
 
-        int pickerX = 160, pickerY = 100;
+        int pickerX = width - 300, pickerY = 30;
         int buttonSize = 10, spacing = 2;
         int buttonsPerRow = 16;
         for (int i = 0; i < 256; i++) {
@@ -352,7 +352,7 @@ public class VoxConfigScreen extends Screen {
         colorPickerButtons.clear();
         if (!showColorPicker) return;
 
-        int pickerX = 160, pickerY = 100;
+        int pickerX = width - 300, pickerY = 30;
         int buttonSize = 10, spacing = 2;
         int buttonsPerRow = 16;
         for (int i = 0; i < 256; i++) {
@@ -552,8 +552,8 @@ public class VoxConfigScreen extends Screen {
 
             // Render properties panel
             if (selectedElement != null) {
-                context.fill(160, 30, 300, height - 30, 0xC0333333); // Semi-transparent panel
-                context.drawTextWithShadow(textRenderer, "Properties: " + selectedElement.id, 170, 40, theme.getTextColor());
+                context.fill(width - 150, 30, width - 30, 430, 0xC0333333); // Compact panel on right
+                context.drawTextWithShadow(textRenderer, "Properties: " + selectedElement.id, width - 140, 40, theme.getTextColor());
                 for (SliderWidget slider : sliders) {
                     slider.render(context, mouseX, mouseY, delta);
                 }
@@ -564,7 +564,7 @@ public class VoxConfigScreen extends Screen {
 
             // Render color picker if active
             if (showColorPicker) {
-                int pickerX = 160, pickerY = 100;
+                int pickerX = width - 300, pickerY = 30;
                 context.fill(pickerX - 5, pickerY - 5, pickerX + 172, pickerY + 172, theme.getPanelBgStart());
                 for (VoxButton button : colorPickerButtons) {
                     int x = button.getX(), y = button.getY();
