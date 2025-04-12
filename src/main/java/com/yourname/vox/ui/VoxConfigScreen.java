@@ -254,9 +254,6 @@ public class VoxConfigScreen extends Screen {
             JsonObject after = selectedElement.toJson();
             undoStack.push(new EditAction(selectedElement, before, after));
             redoStack.clear();
-            if (showProperties) {
-                updatePropertiesPanel();
-            }
         }
     }
 
@@ -265,7 +262,7 @@ public class VoxConfigScreen extends Screen {
         propertyButtons.clear();
         if (selectedElement == null) return;
 
-        int sliderX = 10, sliderY = 60, buttonX = 110; // Start higher for spacing
+        int sliderX = 10, sliderY = 60, buttonX = 110;
         helpHint = "Drag element, Shift + Arrows: Move 0.5px, Ctrl + G: Snap 10px.";
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Back"), btn -> {
             showProperties = false;
@@ -274,7 +271,7 @@ public class VoxConfigScreen extends Screen {
             helpHint = "Click element to edit, 'Layers' to reorder.";
             init();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, width, selectedElement.x, v -> {
             double oldX = selectedElement.x;
             selectedElement.x = snapToGrid ? Math.round(v / 10.0) * 10 : v;
@@ -293,7 +290,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("x", oldX, selectedElement.x);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, height, selectedElement.y, v -> {
             double oldY = selectedElement.y;
             selectedElement.y = snapToGrid ? Math.round(v / 10.0) * 10 : v;
@@ -312,7 +309,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("y", oldY, selectedElement.y);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 500, selectedElement.width, v -> {
             double oldWidth = selectedElement.width;
             selectedElement.width = snapToGrid ? Math.round(v / 10.0) * 10 : v;
@@ -331,7 +328,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("width", oldWidth, selectedElement.width);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, selectedElement.type.equals("window") ? 50 : 20, 600, selectedElement.height, v -> {
             double oldHeight = selectedElement.height;
             selectedElement.height = snapToGrid ? Math.round(v / 10.0) * 10 : v;
@@ -350,18 +347,18 @@ public class VoxConfigScreen extends Screen {
             applyEdit("height", oldHeight, selectedElement.height);
             updateVoxScreen();
         }));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Color"), btn -> {
+        sliderY += 30;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Pick Col"), btn -> {
             showColorWheel = !showColorWheel;
             isBorderColorWheel = false;
         }));
-        propertyButtons.add(new VoxButton(theme, sliderX + 85, sliderY, 40, 20, Text.literal("Save Color"), btn -> {
+        propertyButtons.add(new VoxButton(theme, sliderX + 85, sliderY, 40, 20, Text.literal("Save Col"), btn -> {
             List<int[]> presets = colorPresets.computeIfAbsent(selectedElement.id, k -> new ArrayList<>());
             if (presets.size() < 5) {
                 presets.add(new int[]{selectedElement.r, selectedElement.g, selectedElement.b, (int) (selectedElement.opacity * 255)});
             }
         }));
-        sliderY += 25;
+        sliderY += 30;
         for (int i = 0; i < 5; i++) {
             int presetIndex = i;
             propertyButtons.add(new VoxButton(theme, sliderX + i * 25, sliderY, 20, 20, Text.literal(String.valueOf(i + 1)), btn -> {
@@ -380,7 +377,7 @@ public class VoxConfigScreen extends Screen {
                 }
             }));
         }
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.0, 1.0, selectedElement.opacity, v -> {
             float oldOpacity = selectedElement.opacity;
             selectedElement.opacity = v.floatValue();
@@ -399,7 +396,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("opacity", oldOpacity, selectedElement.opacity);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0.5, 2.0, selectedElement.fontSize, v -> {
             float oldFontSize = selectedElement.fontSize;
             selectedElement.fontSize = v.floatValue();
@@ -418,7 +415,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("fontSize", oldFontSize, selectedElement.fontSize);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 40, 20, Text.literal("Left"), btn -> {
             String oldAlign = selectedElement.textAlign;
             selectedElement.textAlign = "left";
@@ -437,7 +434,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("textAlign", oldAlign, selectedElement.textAlign);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 0, 10, selectedElement.spacing, v -> {
             int oldSpacing = selectedElement.spacing;
             selectedElement.spacing = v.intValue();
@@ -456,7 +453,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("spacing", oldSpacing, selectedElement.spacing);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Border: " + (selectedElement.border ? "On" : "Off")), btn -> {
             boolean oldBorder = selectedElement.border;
             selectedElement.border = !selectedElement.border;
@@ -464,7 +461,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("border", oldBorder, selectedElement.border);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, 1, 5, selectedElement.borderThickness, v -> {
             int oldThickness = selectedElement.borderThickness;
             selectedElement.borderThickness = v.intValue();
@@ -483,12 +480,12 @@ public class VoxConfigScreen extends Screen {
             applyEdit("borderThickness", oldThickness, selectedElement.borderThickness);
             updateVoxScreen();
         }));
-        sliderY += 25;
-        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Border Color"), btn -> {
+        sliderY += 30;
+        propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Bdr Col"), btn -> {
             showColorWheel = !showColorWheel;
             isBorderColorWheel = true;
         }));
-        sliderY += 25;
+        sliderY += 30;
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Visible: " + (selectedElement.visible ? "On" : "Off")), btn -> {
             boolean oldVisible = selectedElement.visible;
             selectedElement.visible = !selectedElement.visible;
@@ -496,7 +493,7 @@ public class VoxConfigScreen extends Screen {
             applyEdit("visible", oldVisible, selectedElement.visible);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         sliders.add(new SliderWidget(theme, sliderX, sliderY, 80, 20, -10, 10, selectedElement.zIndex, v -> {
             int oldZIndex = selectedElement.zIndex;
             selectedElement.zIndex = v.intValue();
@@ -515,12 +512,12 @@ public class VoxConfigScreen extends Screen {
             applyEdit("zIndex", oldZIndex, selectedElement.zIndex);
             updateVoxScreen();
         }));
-        sliderY += 25;
+        sliderY += 30;
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Snap: " + (snapToGrid ? "On" : "Off")), btn -> {
             snapToGrid = !snapToGrid;
             btn.setMessage(Text.literal("Snap: " + (snapToGrid ? "On" : "Off")));
         }));
-        sliderY += 25;
+        sliderY += 30;
         propertyButtons.add(new VoxButton(theme, sliderX, sliderY, 80, 20, Text.literal("Easing: " + selectedElement.easing), btn -> {
             String oldEasing = selectedElement.easing;
             String[] easings = {"linear", "ease-in", "ease-out", "ease-in-out"};
@@ -716,42 +713,42 @@ public class VoxConfigScreen extends Screen {
             }
 
             if (showProperties && selectedElement != null) {
-                context.fill(10, 30, 150, 430, 0xC0333333); // Extended height
+                context.fill(10, 30, 150, 430, 0xC0333333);
                 context.drawTextWithShadow(textRenderer, "Properties: " + selectedElement.id, 20, 40, theme.getTextColor());
-                int sliderY = 85; // Start after "Back" with more space
-                context.drawTextWithShadow(textRenderer, "X Pos", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Y Pos", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Width", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Height", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Color", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Presets", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Opacity", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Font Size", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Align", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Spacing", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Border", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Border Size", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Border Col", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Visible", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Z-Index", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Snap Grid", 20, sliderY - 15, theme.getTextColor());
-                sliderY += 25;
-                context.drawTextWithShadow(textRenderer, "Easing", 20, sliderY - 15, theme.getTextColor());
+                int sliderY = 85;
+                context.drawTextWithShadow(textRenderer, "X", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Y", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "W", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "H", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Col", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Presets", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Opac", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Font", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Align", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Space", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Bdr", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Bdr Size", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Bdr Col", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Vis", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Z", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Snap", 20, sliderY - 10, theme.getTextColor());
+                sliderY += 30;
+                context.drawTextWithShadow(textRenderer, "Ease", 20, sliderY - 10, theme.getTextColor());
                 for (SliderWidget slider : sliders) {
                     slider.render(context, mouseX, mouseY, delta);
                 }
@@ -851,25 +848,19 @@ public class VoxConfigScreen extends Screen {
                                 selectedElement.borderR = rgb[0];
                                 selectedElement.borderG = rgb[1];
                                 selectedElement.borderB = rgb[2];
-                                applyEdit("borderR", oldR, selectedElement.borderR);
-                                applyEdit("borderG", oldG, selectedElement.borderG);
-                                applyEdit("borderB", oldB, selectedElement.borderB);
+                                applyEdit("borderColor", oldR + "," + oldG + "," + oldB, rgb[0] + "," + rgb[1] + "," + rgb[2]);
                             } else {
                                 int oldR = selectedElement.r, oldG = selectedElement.g, oldB = selectedElement.b;
                                 selectedElement.r = rgb[0];
                                 selectedElement.g = rgb[1];
                                 selectedElement.b = rgb[2];
-                                applyEdit("r", oldR, selectedElement.r);
-                                applyEdit("g", oldG, selectedElement.g);
-                                applyEdit("b", oldB, selectedElement.b);
+                                applyEdit("color", oldR + "," + oldG + "," + oldB, rgb[0] + "," + rgb[1] + "," + rgb[2]);
                             }
                             updateVoxScreen();
-                            updatePropertiesPanel();
                         }
                         return true;
                     } else {
                         showColorWheel = false;
-                        updatePropertiesPanel();
                         return true;
                     }
                 }
