@@ -182,7 +182,6 @@ public class VoxConfigScreen extends Screen {
         undoStack.clear();
         redoStack.clear();
         showColorPicker = false;
-        showLayers = false;
         showPositionSize = false;
         showBody = false;
         showTitle = false;
@@ -191,7 +190,7 @@ public class VoxConfigScreen extends Screen {
         propertiesOffset = 0;
         presetListOffset = 0;
         needsPanelUpdate = false;
-        if (selectedElement == null) {
+        if (selectedElement == null && !showLayers) {
             showCategories = true;
             showProperties = false;
         }
@@ -304,7 +303,7 @@ public class VoxConfigScreen extends Screen {
     private void updatePresetButtons() {
         presetButtons.forEach(button -> button.visible = false);
         presetButtons.clear();
-        int buttonX = width - 230, buttonY = 50; // Shifted right, raised higher
+        int buttonX = width - 200, buttonY = 60;
         List<String> presets = VoxConfigData.getPresetNames();
         for (String preset : presets) {
             presetButtons.add(new VoxButton(theme, buttonX, buttonY, 60, 18, Text.literal(preset.length() > 10 ? preset.substring(0, 10) + "..." : preset), btn -> {
@@ -315,7 +314,7 @@ public class VoxConfigScreen extends Screen {
             buttonY += 20;
         }
         presetButtons.forEach(this::addDrawableChild);
-        System.out.println("Updated preset buttons: " + presets.size() + " presets at x=" + buttonX);
+        System.out.println("Updated preset buttons: " + presets.size() + " presets at x=" + buttonX + ", y=60");
     }
 
     private void updateSliders() {
@@ -385,7 +384,7 @@ public class VoxConfigScreen extends Screen {
         buttonPositions.clear();
         if (selectedElement == null) return;
 
-        int sliderX = 21, sliderY = 60, buttonX = 111; // Further shifted right to prevent cutoff
+        int sliderX = 21, sliderY = 60, buttonX = 111;
         helpHint = "Click dropdowns to edit properties.";
 
         // Back button
@@ -393,6 +392,7 @@ public class VoxConfigScreen extends Screen {
             showProperties = false;
             showCategories = true;
             selectedElement = null;
+            showLayers = false;
             helpHint = "Click element to edit, 'Layers' to reorder.";
             init();
         });
@@ -1003,7 +1003,7 @@ public class VoxConfigScreen extends Screen {
     }
 
     private void redo() {
-        if (!undoStack.isEmpty()) {
+        if (!redoStack.isEmpty()) {
             EditAction action = redoStack.pop();
             if (action.element != null) {
                 action.element.fromJson(action.after);
@@ -1029,16 +1029,16 @@ public class VoxConfigScreen extends Screen {
         if (editorMode && !previewMode) {
             if (showCategories) {
                 int listY = 30;
-                context.fill(15, listY, 165, listY + 200, 0xC0333333);
-                context.enableScissor(15, listY, 165, listY + 200);
+                context.fill(15, listY, 175, listY + 200, 0xC0333333);
+                context.enableScissor(15, listY, 175, listY + 200);
                 for (int i = 0; i < elements.size(); i++) {
                     UIElement element = elements.get(i);
                     int itemY = listY + 10 + i * 20 - elementListOffset;
                     if (itemY >= listY && itemY <= listY + 180) {
                         int textColor = theme.getTextColor();
-                        if (mouseX >= 15 && mouseX <= 165 && mouseY >= itemY && mouseY <= itemY + 20) {
+                        if (mouseX >= 15 && mouseX <= 175 && mouseY >= itemY && mouseY <= itemY + 20) {
                             textColor = theme.getTabActive();
-                            context.fill(15, itemY, 165, itemY + 20, theme.getButtonHover());
+                            context.fill(15, itemY, 175, itemY + 20, theme.getButtonHover());
                         }
                         context.drawTextWithShadow(textRenderer, element.id, 25, itemY, textColor);
                     }
@@ -1046,25 +1046,26 @@ public class VoxConfigScreen extends Screen {
                 context.disableScissor();
                 int layersY = listY + 205;
                 int layersYEnd = layersY + 20;
-                boolean layersHovered = mouseX >= 15 && mouseX <= 165 && mouseY >= layersY && mouseY <= layersYEnd;
+                boolean layersHovered = mouseX >= 15 && mouseX <= 175 && mouseY >= layersY && mouseY <= layersYEnd;
                 context.drawTextWithShadow(textRenderer, "Layers", 25, layersY, layersHovered ? theme.getTabActive() : theme.getTextColor());
                 if (layersHovered) {
-                    context.fill(15, layersY, 165, layersYEnd, theme.getButtonHover());
+                    context.fill(15, layersY, 175, layersYEnd, theme.getButtonHover());
                 }
             }
 
             if (showLayers) {
                 int listY = 30;
-                context.fill(15, listY, 165, listY + 200, 0xC0333333);
-                context.enableScissor(15, listY, 165, listY + 200);
+                context.fill(15, listY, 175, listY + 200, 0xC0333333);
+                context.enableScissor(15, listY, 175, listY + 200);
+                context.drawTextWithShadow(textRenderer, "Layer Order", 25, listY - 20, theme.getTextColor());
                 for (int i = 0; i < elements.size(); i++) {
                     UIElement element = elements.get(i);
                     int itemY = listY + 10 + i * 20 - elementListOffset;
                     if (itemY >= listY && itemY <= listY + 180) {
                         int textColor = theme.getTextColor();
-                        if (mouseX >= 15 && mouseX <= 165 && mouseY >= itemY && mouseY <= itemY + 20) {
+                        if (mouseX >= 15 && mouseX <= 175 && mouseY >= itemY && mouseY <= itemY + 20) {
                             textColor = theme.getTabActive();
-                            context.fill(15, itemY, 165, itemY + 20, theme.getButtonHover());
+                            context.fill(15, itemY, 175, itemY + 20, theme.getButtonHover());
                         }
                         context.drawTextWithShadow(textRenderer, element.id, 25, itemY, textColor);
                     }
@@ -1072,21 +1073,20 @@ public class VoxConfigScreen extends Screen {
                 context.disableScissor();
                 int backY = listY + 205;
                 int backYEnd = backY + 20;
-                boolean backHovered = mouseX >= 15 && mouseX <= 165 && mouseY >= backY && mouseY <= backYEnd;
+                boolean backHovered = mouseX >= 15 && mouseX <= 175 && mouseY >= backY && mouseY <= backYEnd;
                 context.drawTextWithShadow(textRenderer, "Back", 25, backY, backHovered ? theme.getTabActive() : theme.getTextColor());
                 if (backHovered) {
-                    context.fill(15, backY, 165, backYEnd, theme.getButtonHover());
+                    context.fill(15, backY, 175, backYEnd, theme.getButtonHover());
                 }
             }
 
-            // Preset list (only when needed)
-            if (showProperties) { // Only draw presets in properties mode
-                int listY = 50; // Raised to avoid category overlap
+            if (showProperties && presetButtons.size() > 0) {
+                int listY = 60;
                 int presetPanelWidth = 60;
                 int presetPanelHeight = 150;
-                System.out.println("Rendering preset panel at x=" + (width - 230) + ", y=" + listY + ", width=" + presetPanelWidth + ", height=" + presetPanelHeight);
-                context.fill(width - 230, listY, width - 230 + presetPanelWidth, listY + presetPanelHeight, 0xC0333333);
-                context.enableScissor(width - 230, listY, width - 230 + presetPanelWidth, listY + presetPanelHeight);
+                System.out.println("Rendering preset panel at x=" + (width - 200) + ", y=" + listY + ", width=" + presetPanelWidth + ", height=" + presetPanelHeight);
+                context.fill(width - 200, listY, width - 200 + presetPanelWidth, listY + presetPanelHeight, 0xC0333333);
+                context.enableScissor(width - 200, listY, width - 200 + presetPanelWidth, listY + presetPanelHeight);
                 for (int i = 0; i < presetButtons.size(); i++) {
                     VoxButton button = presetButtons.get(i);
                     int itemY = listY + 10 + i * 20 - presetListOffset;
@@ -1099,7 +1099,7 @@ public class VoxConfigScreen extends Screen {
             }
 
             if (showProperties && selectedElement != null) {
-                context.fill(15, 30, 175, 430, 0xC0333333); // Widened panel to 160px
+                context.fill(15, 30, 175, 430, 0xC0333333);
                 context.enableScissor(15, 30, 175, 430);
                 context.getMatrices().push();
                 context.getMatrices().translate(0, -propertiesOffset, 0);
@@ -1149,13 +1149,21 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (editorMode && !previewMode) {
+            System.out.println("Mouse clicked at x=" + mouseX + ", y=" + mouseY + ", button=" + button + ", showCategories=" + showCategories + ", showLayers=" + showLayers + ", showProperties=" + showProperties);
             for (VoxButton btn : controlButtons) {
-                if (btn.mouseClicked(mouseX, mouseY, button)) return true;
+                if (btn.mouseClicked(mouseX, mouseY, button)) {
+                    System.out.println("Control button clicked: " + btn.getMessage().getString());
+                    return true;
+                }
             }
             for (VoxButton btn : presetButtons) {
-                if (btn.mouseClicked(mouseX, mouseY, button)) return true;
+                if (btn.mouseClicked(mouseX, mouseY, button)) {
+                    System.out.println("Preset button clicked: " + btn.getMessage().getString());
+                    return true;
+                }
             }
             if (presetNameField.mouseClicked(mouseX, mouseY, button)) {
+                System.out.println("Preset name field clicked");
                 setFocused(presetNameField);
                 return true;
             }
@@ -1167,7 +1175,10 @@ public class VoxConfigScreen extends Screen {
                     WidgetPosition pos = buttonPositions.get(i);
                     if (mouseX >= pos.x && mouseX <= pos.x + pos.width &&
                             adjustedMouseY >= pos.y && adjustedMouseY <= pos.y + pos.height) {
-                        if (btn.mouseClicked(mouseX, adjustedMouseY, button)) return true;
+                        if (btn.mouseClicked(mouseX, adjustedMouseY, button)) {
+                            System.out.println("Property button clicked: " + btn.getMessage().getString());
+                            return true;
+                        }
                     }
                 }
                 for (int i = 0; i < sliders.size(); i++) {
@@ -1175,7 +1186,10 @@ public class VoxConfigScreen extends Screen {
                     WidgetPosition pos = sliderPositions.get(i);
                     if (mouseX >= pos.x && mouseX <= pos.x + pos.width &&
                             adjustedMouseY >= pos.y && adjustedMouseY <= pos.y + pos.height) {
-                        if (slider.mouseClicked(mouseX, adjustedMouseY, button)) return true;
+                        if (slider.mouseClicked(mouseX, adjustedMouseY, button)) {
+                            System.out.println("Slider clicked at index " + i);
+                            return true;
+                        }
                     }
                 }
             }
@@ -1184,18 +1198,20 @@ public class VoxConfigScreen extends Screen {
                 int listY = 30;
                 int layersY = listY + 205;
                 int layersYEnd = layersY + 20;
-                if (mouseX >= 15 && mouseX <= 165 && mouseY >= layersY && mouseY <= layersYEnd) {
-                    System.out.println("Layers clicked at x=" + mouseX + ", y=" + mouseY);
+                if (mouseX >= 15 && mouseX <= 175 && mouseY >= layersY && mouseY <= layersYEnd) {
+                    System.out.println("Layers button clicked at x=" + mouseX + ", y=" + mouseY + ", transitioning to layer view");
                     showCategories = false;
-                    showLayers = true;
                     showProperties = false;
+                    showLayers = true;
+                    selectedElement = null;
                     helpHint = "Drag to reorder layers, click 'Back' to return.";
                     init();
                     return true;
                 }
-                if (mouseX >= 15 && mouseX <= 165 && mouseY >= listY && mouseY <= listY + 200) {
+                if (mouseX >= 15 && mouseX <= 175 && mouseY >= listY && mouseY <= listY + 200) {
                     int index = (int) ((mouseY - listY - 10 + elementListOffset) / 20);
                     if (index >= 0 && index < elements.size()) {
+                        System.out.println("Element selected: " + elements.get(index).id + " at index " + index);
                         selectedElement = elements.get(index);
                         showCategories = false;
                         showProperties = true;
@@ -1212,16 +1228,17 @@ public class VoxConfigScreen extends Screen {
                 int listY = 30;
                 int backY = listY + 205;
                 int backYEnd = backY + 20;
-                if (mouseX >= 15 && mouseX <= 165 && mouseY >= backY && mouseY <= backYEnd) {
-                    System.out.println("Back clicked at x=" + mouseX + ", y=" + mouseY);
+                if (mouseX >= 15 && mouseX <= 175 && mouseY >= backY && mouseY <= backYEnd) {
+                    System.out.println("Back button clicked at x=" + mouseX + ", y=" + mouseY + ", transitioning to category view");
                     showLayers = false;
                     showCategories = true;
                     showProperties = false;
+                    selectedElement = null;
                     helpHint = "Click element to edit, 'Layers' to reorder.";
                     init();
                     return true;
                 }
-                if (mouseX >= 15 && mouseX <= 165 && mouseY >= listY && mouseY <= listY + 200) {
+                if (mouseX >= 15 && mouseX <= 175 && mouseY >= listY && mouseY <= listY + 200) {
                     int index = (int) ((mouseY - listY - 10 + elementListOffset) / 20);
                     if (index >= 0 && index < elements.size()) {
                         System.out.println("Layer drag started: " + elements.get(index).id + " at index " + index);
@@ -1234,6 +1251,7 @@ public class VoxConfigScreen extends Screen {
 
             for (UIElement element : elements) {
                 if (mouseX >= element.x && mouseX <= element.x + element.width && mouseY >= element.y && mouseY <= element.y + element.height) {
+                    System.out.println("UI element clicked: " + element.id);
                     List<UIElement> group = groups.stream().filter(g -> g.contains(element)).findFirst().orElse(null);
                     if (group != null) {
                         for (UIElement groupedElement : group) {
@@ -1255,6 +1273,7 @@ public class VoxConfigScreen extends Screen {
                 }
             }
         }
+        System.out.println("No actionable click detected at x=" + mouseX + ", y=" + mouseY);
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -1326,7 +1345,7 @@ public class VoxConfigScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (editorMode && !previewMode) {
-            if ((showCategories || showLayers) && mouseX >= 15 && mouseX <= 165 && mouseY >= 30 && mouseY <= 230) {
+            if ((showCategories || showLayers) && mouseX >= 15 && mouseX <= 175 && mouseY >= 30 && mouseY <= 230) {
                 elementListOffset = MathHelper.clamp(elementListOffset - (int) (verticalAmount * 20), 0, maxElementListOffset);
                 return true;
             }
@@ -1334,7 +1353,7 @@ public class VoxConfigScreen extends Screen {
                 propertiesOffset = MathHelper.clamp(propertiesOffset - (int) (verticalAmount * 20), 0, maxPropertiesOffset);
                 return true;
             }
-            if (showProperties && mouseX >= width - 230 && mouseX <= width - 170 && mouseY >= 50 && mouseY <= 200) {
+            if (showProperties && mouseX >= width - 200 && mouseX <= width - 140 && mouseY >= 60 && mouseY <= 210) {
                 presetListOffset = MathHelper.clamp(presetListOffset - (int) (verticalAmount * 20), 0, maxPresetListOffset);
                 updatePresetButtons();
                 return true;
