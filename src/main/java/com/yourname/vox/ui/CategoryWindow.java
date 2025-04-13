@@ -24,6 +24,9 @@ public class CategoryWindow {
     private int dragOffsetY;
     private final int titleBarHeight = 16;
     private int r = 255, g = 255, b = 255; // Body RGB
+    private int titleR = 255, titleG = 255, titleB = 255; // Title bar RGB
+    private int borderR = 255, borderG = 255, borderB = 255; // Border RGB
+    private boolean borderEnabled = false; // Border toggle
 
     public CategoryWindow(VoxTheme theme, String category, List<IVoxAddon> addons, int x, int y) {
         this.theme = theme;
@@ -42,12 +45,23 @@ public class CategoryWindow {
     }
 
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Title bar only (body is transparent by default)
-        context.fill(x, y, x + width, y + titleBarHeight, (0x99 << 24) | (0x1C << 16) | (0x25 << 8) | 0x26);
+        // Border (2px thick)
+        if (borderEnabled && (borderR != 255 || borderG != 255 || borderB != 255)) {
+            context.fill(x - 2, y - 2, x + width + 2, y, (0xFF << 24) | (borderR << 16) | (borderG << 8) | borderB); // Top
+            context.fill(x - 2, y + height, x + width + 2, y + height + 2, (0xFF << 24) | (borderR << 16) | (borderG << 8) | borderB); // Bottom
+            context.fill(x - 2, y, x, y + height, (0xFF << 24) | (borderR << 16) | (borderG << 8) | borderB); // Left
+            context.fill(x + width, y, x + width + 2, y + height, (0xFF << 24) | (borderR << 16) | (borderG << 8) | borderB); // Right
+        }
+
+        // Title bar
+        context.fill(x, y, x + width, y + titleBarHeight,
+                (titleR != 255 || titleG != 255 || titleB != 255) ?
+                        (0xFF << 24) | (titleR << 16) | (titleG << 8) | titleB :
+                        (0x99 << 24) | (0x1C << 16) | (0x25 << 8) | 0x26);
         String displayText = category.length() > 10 ? category.substring(0, 10) + "..." : category;
         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, displayText, x + width / 2, y + 4, 0xFFFFFFFF);
 
-        // Body RGB (optional, only if set)
+        // Body RGB (optional)
         if (r != 255 || g != 255 || b != 255) {
             context.fill(x, y + titleBarHeight, x + width, y + height, (0xFF << 24) | (r << 16) | (g << 8) | b);
         }
@@ -161,10 +175,23 @@ public class CategoryWindow {
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxScroll);
     }
 
-    public void setColor(int r, int g, int b) {
+    public void setColor(int r, int g, int b, int titleR, int titleG, int titleB) {
         this.r = MathHelper.clamp(r, 0, 255);
         this.g = MathHelper.clamp(g, 0, 255);
         this.b = MathHelper.clamp(b, 0, 255);
+        this.titleR = MathHelper.clamp(titleR, 0, 255);
+        this.titleG = MathHelper.clamp(titleG, 0, 255);
+        this.titleB = MathHelper.clamp(titleB, 0, 255);
+    }
+
+    public void setBorderColor(int r, int g, int b) {
+        this.borderR = MathHelper.clamp(r, 0, 255);
+        this.borderG = MathHelper.clamp(g, 0, 255);
+        this.borderB = MathHelper.clamp(b, 0, 255);
+    }
+
+    public void setBorderEnabled(boolean enabled) {
+        this.borderEnabled = enabled;
     }
 
     public int getX() {
@@ -181,5 +208,21 @@ public class CategoryWindow {
 
     public int getHeight() {
         return height;
+    }
+
+    public int[] getBodyColor() {
+        return new int[]{r, g, b};
+    }
+
+    public int[] getTitleColor() {
+        return new int[]{titleR, titleG, titleB};
+    }
+
+    public int[] getBorderColor() {
+        return new int[]{borderR, borderG, borderB};
+    }
+
+    public boolean isBorderEnabled() {
+        return borderEnabled;
     }
 }

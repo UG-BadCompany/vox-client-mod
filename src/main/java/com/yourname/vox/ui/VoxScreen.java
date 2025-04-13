@@ -9,7 +9,6 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,9 +30,12 @@ public class VoxScreen extends Screen {
     private int previousWidth = 0;
     private int previousHeight = 0;
     private VoxButton configButton;
-    private int logoR = 255, logoG = 255, logoB = 255;
-    private int searchR = 255, searchG = 255, searchB = 255;
-    private final Map<String, int[]> categoryColors = new HashMap<>();
+    private int logoR = 255, logoG = 255, logoB = 255, logoA = 255;
+    private int searchR = 255, searchG = 255, searchB = 255, searchA = 255;
+    private final Map<String, int[]> categoryBodyColors = new HashMap<>();
+    private final Map<String, int[]> categoryTitleColors = new HashMap<>();
+    private final Map<String, int[]> categoryBorderColors = new HashMap<>();
+    private final Map<String, Boolean> categoryBorderStates = new HashMap<>();
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
@@ -51,7 +53,6 @@ public class VoxScreen extends Screen {
             previousHeight = height;
             updateControlPosition();
             categoryWindows.clear();
-            categoryColors.clear();
         }
 
         searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, width - 130, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
@@ -98,8 +99,13 @@ public class VoxScreen extends Screen {
 
                 CategoryWindow window = new CategoryWindow(theme, category, addons, windowX + col * 85, windowY + row * 400);
                 categoryWindows.add(window);
-                int[] colors = categoryColors.getOrDefault(category, new int[]{255, 255, 255});
-                window.setColor(colors[0], colors[1], colors[2]);
+                int[] bodyColors = categoryBodyColors.getOrDefault(category, new int[]{255, 255, 255});
+                int[] titleColors = categoryTitleColors.getOrDefault(category, new int[]{255, 255, 255});
+                int[] borderColors = categoryBorderColors.getOrDefault(category, new int[]{255, 255, 255});
+                boolean borderState = categoryBorderStates.getOrDefault(category, false);
+                window.setColor(bodyColors[0], bodyColors[1], bodyColors[2], titleColors[0], titleColors[1], titleColors[2]);
+                window.setBorderColor(borderColors[0], borderColors[1], borderColors[2]);
+                window.setBorderEnabled(borderState);
                 col++;
                 if (col >= windowsPerRow) {
                     col = 0;
@@ -119,28 +125,28 @@ public class VoxScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         try {
-            if (logoR != 255 || logoG != 255 || logoB != 255) {
-                context.fill(controlX, controlY, controlX + controlWidth, controlY + controlHeight, (0xFF << 24) | (logoR << 16) | (logoG << 8) | logoB);
-            }
-            context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, 1.0f);
+            // Logo rendering with transparency
+            context.fill(controlX, controlY, controlX + controlWidth, controlY + controlHeight,
+                    (logoA << 24) | (logoR << 16) | (logoG << 8) | logoB);
+            context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, logoA / 255.0f);
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
             context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        } catch (Exception e) {
-            System.err.println("Failed to render logo texture: " + e.getMessage());
-        }
 
-        if (searchR != 255 || searchG != 255 || searchB != 255) {
-            context.fill(searchField.getX() - 2, searchField.getY() - 2, searchField.getX() + searchField.getWidth() + 2, searchField.getY(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
-            context.fill(searchField.getX() - 2, searchField.getY() + searchField.getHeight(), searchField.getX() + searchField.getWidth() + 2, searchField.getY() + searchField.getHeight() + 2, (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
-            context.fill(searchField.getX() - 2, searchField.getY(), searchField.getX(), searchField.getY() + searchField.getHeight(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
-            context.fill(searchField.getX() + searchField.getWidth(), searchField.getY(), searchField.getX() + searchField.getWidth() + 2, searchField.getY() + searchField.getHeight(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
+            // Search field rendering with transparency
+            context.fill(searchField.getX(), searchField.getY(), searchField.getX() + searchField.getWidth(), searchField.getY() + searchField.getHeight(),
+                    (searchA << 24) | (searchR << 16) | (searchG << 8) | searchB);
+            searchField.render(context, mouseX, mouseY, delta);
+            searchWindow.render(context, mouseX, mouseY, delta);
+
+            // Category windows (handled by CategoryWindow.java)
+            for (CategoryWindow window : categoryWindows) {
+                window.render(context, mouseX, mouseY, delta);
+            }
+
+            configButton.render(context, mouseX, mouseY, delta);
+        } catch (Exception e) {
+            System.err.println("Failed to render VoxScreen: " + e.getMessage());
         }
-        searchField.render(context, mouseX, mouseY, delta);
-        searchWindow.render(context, mouseX, mouseY, delta);
-        for (CategoryWindow window : categoryWindows) {
-            window.render(context, mouseX, mouseY, delta);
-        }
-        configButton.render(context, mouseX, mouseY, delta);
     }
 
     @Override
@@ -221,6 +227,13 @@ public class VoxScreen extends Screen {
         updateControlPosition();
     }
 
+    public void updateLogoColor(int r, int g, int b, int a) {
+        this.logoR = MathHelper.clamp(r, 0, 255);
+        this.logoG = MathHelper.clamp(g, 0, 255);
+        this.logoB = MathHelper.clamp(b, 0, 255);
+        this.logoA = MathHelper.clamp(a, 0, 255);
+    }
+
     public void updateSearchPosition(int x, int y) {
         this.searchField.setX(MathHelper.clamp(x, 0, width - searchField.getWidth()));
         this.searchField.setY(MathHelper.clamp(y, 0, height - searchField.getHeight()));
@@ -231,6 +244,13 @@ public class VoxScreen extends Screen {
         this.searchField.setWidth(Math.max(20, Math.min(500, width)));
         this.searchField.setHeight(Math.max(20, Math.min(600, height)));
         this.searchWindow = new SearchWindow(theme, searchField.getX(), searchField.getY(), searchField);
+    }
+
+    public void updateSearchColor(int r, int g, int b, int a) {
+        this.searchR = MathHelper.clamp(r, 0, 255);
+        this.searchG = MathHelper.clamp(g, 0, 255);
+        this.searchB = MathHelper.clamp(b, 0, 255);
+        this.searchA = MathHelper.clamp(a, 0, 255);
     }
 
     public void updateCategoryPosition(String category, int x, int y) {
@@ -251,23 +271,25 @@ public class VoxScreen extends Screen {
         }
     }
 
-    public void updateElementColor(String id, int r, int g, int b) {
-        System.out.println("VoxScreen.updateElementColor called for id=" + id + " with RGB(" + r + "," + g + "," + b + ")");
-        if (id.equals("logo")) {
-            this.logoR = MathHelper.clamp(r, 0, 255);
-            this.logoG = MathHelper.clamp(g, 0, 255);
-            this.logoB = MathHelper.clamp(b, 0, 255);
-        } else if (id.equals("search")) {
-            this.searchR = MathHelper.clamp(r, 0, 255);
-            this.searchG = MathHelper.clamp(g, 0, 255);
-            this.searchB = MathHelper.clamp(b, 0, 255);
-        } else {
-            categoryColors.put(id, new int[]{MathHelper.clamp(r, 0, 255), MathHelper.clamp(g, 0, 255), MathHelper.clamp(b, 0, 255)});
-            for (CategoryWindow window : categoryWindows) {
-                if (window.getCategory().equals(id)) {
-                    window.setColor(r, g, b);
-                    break;
-                }
+    public void updateCategoryColor(String id, int bodyR, int bodyG, int bodyB, int titleR, int titleG, int titleB) {
+        categoryBodyColors.put(id, new int[]{MathHelper.clamp(bodyR, 0, 255), MathHelper.clamp(bodyG, 0, 255), MathHelper.clamp(bodyB, 0, 255)});
+        categoryTitleColors.put(id, new int[]{MathHelper.clamp(titleR, 0, 255), MathHelper.clamp(titleG, 0, 255), MathHelper.clamp(titleB, 0, 255)});
+        for (CategoryWindow window : categoryWindows) {
+            if (window.getCategory().equals(id)) {
+                window.setColor(bodyR, bodyG, bodyB, titleR, titleG, titleB);
+                break;
+            }
+        }
+    }
+
+    public void updateCategoryBorder(String id, int r, int g, int b, boolean enabled) {
+        categoryBorderColors.put(id, new int[]{MathHelper.clamp(r, 0, 255), MathHelper.clamp(g, 0, 255), MathHelper.clamp(b, 0, 255)});
+        categoryBorderStates.put(id, enabled);
+        for (CategoryWindow window : categoryWindows) {
+            if (window.getCategory().equals(id)) {
+                window.setBorderColor(r, g, b);
+                window.setBorderEnabled(enabled);
+                break;
             }
         }
     }
@@ -294,5 +316,29 @@ public class VoxScreen extends Screen {
 
     public int getLogoHeight() {
         return controlHeight;
+    }
+
+    public int[] getLogoColor() {
+        return new int[]{logoR, logoG, logoB, logoA};
+    }
+
+    public int[] getSearchColor() {
+        return new int[]{searchR, searchG, searchB, searchA};
+    }
+
+    public Map<String, int[]> getCategoryBodyColors() {
+        return categoryBodyColors;
+    }
+
+    public Map<String, int[]> getCategoryTitleColors() {
+        return categoryTitleColors;
+    }
+
+    public Map<String, int[]> getCategoryBorderColors() {
+        return categoryBorderColors;
+    }
+
+    public Map<String, Boolean> getCategoryBorderStates() {
+        return categoryBorderStates;
     }
 }
