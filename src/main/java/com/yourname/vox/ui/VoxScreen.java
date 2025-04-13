@@ -130,10 +130,8 @@ public class VoxScreen extends Screen {
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-            // Logo rendering with transparency
+            // Logo rendering without background fill
             System.out.println("Rendering logo with alpha: " + logoA);
-            context.fill(controlX, controlY, controlX + controlWidth, controlY + controlHeight,
-                    (logoA << 24) | (logoR << 16) | (logoG << 8) | logoB);
             context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, logoA / 255.0f);
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
             context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -241,7 +239,7 @@ public class VoxScreen extends Screen {
         this.logoG = MathHelper.clamp(g, 0, 255);
         this.logoB = MathHelper.clamp(b, 0, 255);
         this.logoA = MathHelper.clamp(a, 0, 255);
-        System.out.println("Updated logo color: R=" + logoR + ", G=" + logoG + ", B=" + logoB + ", A=" + logoA);
+        System.out.println("Updated logo color: Red=" + logoR + ", Green=" + logoG + ", Blue=" + logoB + ", Alpha=" + logoA);
     }
 
     public void updateSearchPosition(int x, int y) {
