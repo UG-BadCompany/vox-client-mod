@@ -11,7 +11,9 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class VoxScreen extends Screen {
@@ -29,6 +31,9 @@ public class VoxScreen extends Screen {
     private int previousWidth = 0;
     private int previousHeight = 0;
     private VoxButton configButton;
+    private int logoR = 255, logoG = 255, logoB = 255;
+    private int searchR = 255, searchG = 255, searchB = 255;
+    private final Map<String, int[]> categoryColors = new HashMap<>();
 
     public VoxScreen() {
         super(Text.literal("Vox Client"));
@@ -46,6 +51,7 @@ public class VoxScreen extends Screen {
             previousHeight = height;
             updateControlPosition();
             categoryWindows.clear();
+            categoryColors.clear();
         }
 
         searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, width - 130, controlY + controlHeight + 10, 120, 20, Text.literal("Search..."));
@@ -90,7 +96,10 @@ public class VoxScreen extends Screen {
                         })
                         .collect(Collectors.toList());
 
-                categoryWindows.add(new CategoryWindow(theme, category, addons, windowX + col * 85, windowY + row * 400));
+                CategoryWindow window = new CategoryWindow(theme, category, addons, windowX + col * 85, windowY + row * 400);
+                categoryWindows.add(window);
+                int[] colors = categoryColors.getOrDefault(category, new int[]{255, 255, 255});
+                window.setColor(colors[0], colors[1], colors[2]);
                 col++;
                 if (col >= windowsPerRow) {
                     col = 0;
@@ -110,11 +119,23 @@ public class VoxScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         try {
+            if (logoR != 255 || logoG != 255 || logoB != 255) {
+                context.fill(controlX, controlY, controlX + controlWidth, controlY + controlHeight, (0xFF << 24) | (logoR << 16) | (logoG << 8) | logoB);
+            }
+            context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, 1.0f);
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
+            context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         } catch (Exception e) {
             System.err.println("Failed to render logo texture: " + e.getMessage());
         }
 
+        if (searchR != 255 || searchG != 255 || searchB != 255) {
+            context.fill(searchField.getX() - 2, searchField.getY() - 2, searchField.getX() + searchField.getWidth() + 2, searchField.getY(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
+            context.fill(searchField.getX() - 2, searchField.getY() + searchField.getHeight(), searchField.getX() + searchField.getWidth() + 2, searchField.getY() + searchField.getHeight() + 2, (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
+            context.fill(searchField.getX() - 2, searchField.getY(), searchField.getX(), searchField.getY() + searchField.getHeight(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
+            context.fill(searchField.getX() + searchField.getWidth(), searchField.getY(), searchField.getX() + searchField.getWidth() + 2, searchField.getY() + searchField.getHeight(), (0xFF << 24) | (searchR << 16) | (searchG << 8) | searchB);
+        }
+        searchField.render(context, mouseX, mouseY, delta);
         searchWindow.render(context, mouseX, mouseY, delta);
         for (CategoryWindow window : categoryWindows) {
             window.render(context, mouseX, mouseY, delta);
@@ -189,7 +210,6 @@ public class VoxScreen extends Screen {
         return false;
     }
 
-    // Public methods for real-time updates
     public void updateLogoPosition(int x, int y) {
         this.controlX = MathHelper.clamp(x, 0, width - controlWidth);
         this.controlY = MathHelper.clamp(y, 0, height - controlHeight);
@@ -232,13 +252,24 @@ public class VoxScreen extends Screen {
     }
 
     public void updateElementColor(String id, int r, int g, int b) {
-        for (CategoryWindow window : categoryWindows) {
-            if (window.getCategory().equals(id)) {
-                // Update category window color logic here if applicable
-                break;
+        System.out.println("VoxScreen.updateElementColor called for id=" + id + " with RGB(" + r + "," + g + "," + b + ")");
+        if (id.equals("logo")) {
+            this.logoR = MathHelper.clamp(r, 0, 255);
+            this.logoG = MathHelper.clamp(g, 0, 255);
+            this.logoB = MathHelper.clamp(b, 0, 255);
+        } else if (id.equals("search")) {
+            this.searchR = MathHelper.clamp(r, 0, 255);
+            this.searchG = MathHelper.clamp(g, 0, 255);
+            this.searchB = MathHelper.clamp(b, 0, 255);
+        } else {
+            categoryColors.put(id, new int[]{MathHelper.clamp(r, 0, 255), MathHelper.clamp(g, 0, 255), MathHelper.clamp(b, 0, 255)});
+            for (CategoryWindow window : categoryWindows) {
+                if (window.getCategory().equals(id)) {
+                    window.setColor(r, g, b);
+                    break;
+                }
             }
         }
-        // Update theme colors if needed
     }
 
     public List<CategoryWindow> getCategoryWindows() {

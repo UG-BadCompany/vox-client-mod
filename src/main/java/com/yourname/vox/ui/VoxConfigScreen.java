@@ -242,6 +242,8 @@ public class VoxConfigScreen extends Screen {
                 System.out.println("Executing render refresh for " + selectedElement.id);
                 try {
                     parent.render(new DrawContext(client, client.getBufferBuilders().getEntityVertexConsumers()), 0, 0, 0);
+                    parent.init(client, width, height);
+                    System.out.println("Reinitialized VoxScreen for " + selectedElement.id);
                 } catch (Exception e) {
                     System.err.println("Render refresh failed for " + selectedElement.id + ": " + e.getMessage());
                 }

@@ -23,6 +23,7 @@ public class CategoryWindow {
     private int dragOffsetX;
     private int dragOffsetY;
     private final int titleBarHeight = 16;
+    private int r = 255, g = 255, b = 255; // Body RGB
 
     public CategoryWindow(VoxTheme theme, String category, List<IVoxAddon> addons, int x, int y) {
         this.theme = theme;
@@ -41,9 +42,15 @@ public class CategoryWindow {
     }
 
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(x, y, x + width, y + titleBarHeight, 0xFF1C2526);
+        // Title bar only (body is transparent by default)
+        context.fill(x, y, x + width, y + titleBarHeight, (0x99 << 24) | (0x1C << 16) | (0x25 << 8) | 0x26);
         String displayText = category.length() > 10 ? category.substring(0, 10) + "..." : category;
         context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, displayText, x + width / 2, y + 4, 0xFFFFFFFF);
+
+        // Body RGB (optional, only if set)
+        if (r != 255 || g != 255 || b != 255) {
+            context.fill(x, y + titleBarHeight, x + width, y + height, (0xFF << 24) | (r << 16) | (g << 8) | b);
+        }
 
         context.enableScissor(x, y + titleBarHeight, x + width, y + height);
         for (CustomVoxButton button : buttons) {
@@ -132,7 +139,6 @@ public class CategoryWindow {
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxScroll);
     }
 
-    // Public methods for real-time updates
     public String getCategory() {
         return category;
     }
@@ -153,6 +159,12 @@ public class CategoryWindow {
         this.height = Math.max(50, Math.min(600, height));
         maxScroll = Math.max(0, (buttons.size() * 16) - (height - titleBarHeight));
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxScroll);
+    }
+
+    public void setColor(int r, int g, int b) {
+        this.r = MathHelper.clamp(r, 0, 255);
+        this.g = MathHelper.clamp(g, 0, 255);
+        this.b = MathHelper.clamp(b, 0, 255);
     }
 
     public int getX() {
