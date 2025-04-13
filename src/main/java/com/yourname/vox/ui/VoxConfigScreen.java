@@ -54,6 +54,7 @@ public class VoxConfigScreen extends Screen {
     private boolean draggingLayer = false;
     private int draggedLayerIndex = -1;
     private String helpHint = "";
+    private boolean needsPanelUpdate = false;
 
     public VoxConfigScreen(VoxScreen parent, VoxTheme theme, VoxConfigManager configManager) {
         super(Text.literal("Vox UI Editor"));
@@ -77,16 +78,6 @@ public class VoxConfigScreen extends Screen {
         String type;
         double x, y, width, height;
         int r, g, b;
-        float opacity;
-        float fontSize;
-        String textAlign;
-        int spacing;
-        boolean border;
-        int borderThickness;
-        int borderR, borderG, borderB;
-        boolean visible;
-        int zIndex;
-        String easing;
 
         UIElement(String id, String type, double x, double y, double width, double height) {
             this.id = id;
@@ -98,18 +89,6 @@ public class VoxConfigScreen extends Screen {
             this.r = 255;
             this.g = 255;
             this.b = 255;
-            this.opacity = 1.0f;
-            this.fontSize = 1.0f;
-            this.textAlign = "center";
-            this.spacing = 2;
-            this.border = false;
-            this.borderThickness = 1;
-            this.borderR = 255;
-            this.borderG = 255;
-            this.borderB = 255;
-            this.visible = true;
-            this.zIndex = 0;
-            this.easing = "linear";
         }
 
         JsonObject toJson() {
@@ -123,18 +102,6 @@ public class VoxConfigScreen extends Screen {
             json.addProperty("r", r);
             json.addProperty("g", g);
             json.addProperty("b", b);
-            json.addProperty("opacity", opacity);
-            json.addProperty("fontSize", fontSize);
-            json.addProperty("textAlign", textAlign);
-            json.addProperty("spacing", spacing);
-            json.addProperty("border", border);
-            json.addProperty("borderThickness", borderThickness);
-            json.addProperty("borderR", borderR);
-            json.addProperty("borderG", borderG);
-            json.addProperty("borderB", borderB);
-            json.addProperty("visible", visible);
-            json.addProperty("zIndex", zIndex);
-            json.addProperty("easing", easing);
             return json;
         }
 
@@ -146,18 +113,6 @@ public class VoxConfigScreen extends Screen {
             r = json.get("r").getAsInt();
             g = json.get("g").getAsInt();
             b = json.get("b").getAsInt();
-            opacity = json.get("opacity").getAsFloat();
-            fontSize = json.get("fontSize").getAsFloat();
-            textAlign = json.get("textAlign").getAsString();
-            spacing = json.get("spacing").getAsInt();
-            border = json.get("border").getAsBoolean();
-            borderThickness = json.get("borderThickness").getAsInt();
-            borderR = json.get("borderR").getAsInt();
-            borderG = json.get("borderG").getAsInt();
-            borderB = json.get("borderB").getAsInt();
-            visible = json.get("visible").getAsBoolean();
-            zIndex = json.get("zIndex").getAsInt();
-            easing = json.has("easing") ? json.get("easing").getAsString() : "linear";
         }
     }
 
@@ -197,6 +152,7 @@ public class VoxConfigScreen extends Screen {
         showColorPicker = false;
         showLayers = false;
         propertiesOffset = 0;
+        needsPanelUpdate = false;
         if (selectedElement == null) {
             showCategories = true;
             showProperties = false;
@@ -245,7 +201,7 @@ public class VoxConfigScreen extends Screen {
         }
 
         maxElementListOffset = Math.max(0, elements.size() * 20 - 180);
-        maxPropertiesOffset = Math.max(0, 7 * 30 - 360); // Adjusted for simplified panel
+        maxPropertiesOffset = Math.max(0, 7 * 30 - 360);
     }
 
     private void updateVoxScreen() {
@@ -254,30 +210,38 @@ public class VoxConfigScreen extends Screen {
             return;
         }
         try {
-            // Log properties for debugging
+            // Log properties
             System.out.println("Updating " + selectedElement.id + ": x=" + selectedElement.x + ", y=" + selectedElement.y + ", w=" + selectedElement.width + ", h=" + selectedElement.height);
             System.out.println("Color: R=" + selectedElement.r + ", G=" + selectedElement.g + ", B=" + selectedElement.b);
 
             // Update position and size
             if (selectedElement.id.equals("logo")) {
+                System.out.println("Calling updateLogoPosition for " + selectedElement.id + " at x=" + (int) selectedElement.x + ", y=" + (int) selectedElement.y);
                 parent.updateLogoPosition((int) selectedElement.x, (int) selectedElement.y);
                 parent.updateLogoSize((int) selectedElement.width, (int) selectedElement.height);
             } else if (selectedElement.id.equals("search")) {
+                System.out.println("Calling updateSearchPosition for " + selectedElement.id + " at x=" + (int) selectedElement.x + ", y=" + (int) selectedElement.y);
                 parent.updateSearchPosition((int) selectedElement.x, (int) selectedElement.y);
                 parent.updateSearchSize((int) selectedElement.width, (int) selectedElement.height);
             } else {
+                System.out.println("Calling updateCategoryPosition for " + selectedElement.id + " at x=" + (int) selectedElement.x + ", y=" + (int) selectedElement.y);
                 parent.updateCategoryPosition(selectedElement.id, (int) selectedElement.x, (int) selectedElement.y);
                 parent.updateCategorySize(selectedElement.id, (int) selectedElement.width, (int) selectedElement.height);
             }
 
             // Update color
+            System.out.println("Calling updateElementColor for " + selectedElement.id + " with RGB(" + selectedElement.r + "," + selectedElement.g + "," + selectedElement.b + ")");
             parent.updateElementColor(selectedElement.id, selectedElement.r, selectedElement.g, selectedElement.b);
 
-            // Force render refresh
-            MinecraftClient.getInstance().execute(() -> {
+            // Queue panel update
+            needsPanelUpdate = true;
+
+            // Trigger render refresh
+            MinecraftClient client = MinecraftClient.getInstance();
+            client.execute(() -> {
                 System.out.println("Executing render refresh for " + selectedElement.id);
                 try {
-                    parent.render(new DrawContext(MinecraftClient.getInstance(), MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers()), 0, 0, 0);
+                    parent.render(new DrawContext(client, client.getBufferBuilders().getEntityVertexConsumers()), 0, 0, 0);
                 } catch (Exception e) {
                     System.err.println("Render refresh failed for " + selectedElement.id + ": " + e.getMessage());
                 }
@@ -429,7 +393,7 @@ public class VoxConfigScreen extends Screen {
         sliderY += 30;
         VoxButton pickColorButton = new VoxButton(theme, sliderX, sliderY, 70, 18, Text.literal("Pick Col"), btn -> {
             showColorPicker = !showColorPicker;
-            updatePropertiesPanel();
+            needsPanelUpdate = true;
         });
         propertyButtons.add(pickColorButton);
         buttonPositions.add(new WidgetPosition(sliderX, sliderY, 70, 18));
@@ -676,7 +640,7 @@ public class VoxConfigScreen extends Screen {
                             textColor = theme.getTabActive();
                             context.fill(10, itemY, 150, itemY + 20, theme.getButtonHover());
                         }
-                        context.drawTextWithShadow(textRenderer, element.id + " (z:" + element.zIndex + ")", 20, itemY, textColor);
+                        context.drawTextWithShadow(textRenderer, element.id, 20, itemY, textColor);
                     }
                 }
                 context.disableScissor();
@@ -744,6 +708,12 @@ public class VoxConfigScreen extends Screen {
         for (VoxButton button : controlButtons) {
             button.render(context, mouseX, mouseY, delta);
         }
+
+        // Handle deferred panel update
+        if (needsPanelUpdate && showProperties && selectedElement != null) {
+            needsPanelUpdate = false;
+            updatePropertiesPanel();
+        }
     }
 
     @Override
@@ -809,7 +779,7 @@ public class VoxConfigScreen extends Screen {
             }
 
             for (UIElement element : elements) {
-                if (element.visible && mouseX >= element.x && mouseX <= element.x + element.width && mouseY >= element.y && mouseY <= element.y + element.height) {
+                if (mouseX >= element.x && mouseX <= element.x + element.width && mouseY >= element.y && mouseY <= element.y + element.height) {
                     List<UIElement> group = groups.stream().filter(g -> g.contains(element)).findFirst().orElse(null);
                     if (group != null) {
                         for (UIElement groupedElement : group) {
@@ -860,7 +830,6 @@ public class VoxConfigScreen extends Screen {
             applyEdit("x", oldX, selectedElement.x);
             applyEdit("y", oldY, selectedElement.y);
             updateVoxScreen();
-            updatePropertiesPanel();
             return true;
         }
         if (editorMode && draggingLayer && draggedLayerIndex >= 0) {
@@ -870,9 +839,6 @@ public class VoxConfigScreen extends Screen {
             if (newIndex != draggedLayerIndex) {
                 UIElement movedElement = elements.remove(draggedLayerIndex);
                 elements.add(newIndex, movedElement);
-                for (int i = 0; i < elements.size(); i++) {
-                    elements.get(i).zIndex = elements.size() - i;
-                }
                 draggedLayerIndex = newIndex;
                 init();
             }
@@ -886,6 +852,10 @@ public class VoxConfigScreen extends Screen {
         dragging = false;
         draggingLayer = false;
         draggedLayerIndex = -1;
+        if (needsPanelUpdate && showProperties && selectedElement != null) {
+            needsPanelUpdate = false;
+            updatePropertiesPanel();
+        }
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -921,7 +891,6 @@ public class VoxConfigScreen extends Screen {
                 System.out.println("Key set x=" + selectedElement.x + " for " + selectedElement.id);
                 applyEdit("x", oldX, selectedElement.x);
                 updateVoxScreen();
-                updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_RIGHT) {
                 double oldX = selectedElement.x;
@@ -931,7 +900,6 @@ public class VoxConfigScreen extends Screen {
                 System.out.println("Key set x=" + selectedElement.x + " for " + selectedElement.id);
                 applyEdit("x", oldX, selectedElement.x);
                 updateVoxScreen();
-                updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_UP) {
                 double oldY = selectedElement.y;
@@ -941,7 +909,6 @@ public class VoxConfigScreen extends Screen {
                 System.out.println("Key set y=" + selectedElement.y + " for " + selectedElement.id);
                 applyEdit("y", oldY, selectedElement.y);
                 updateVoxScreen();
-                updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_DOWN) {
                 double oldY = selectedElement.y;
@@ -951,7 +918,6 @@ public class VoxConfigScreen extends Screen {
                 System.out.println("Key set y=" + selectedElement.y + " for " + selectedElement.id);
                 applyEdit("y", oldY, selectedElement.y);
                 updateVoxScreen();
-                updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_G && ctrl) {
                 double oldX = selectedElement.x, oldY = selectedElement.y;
@@ -961,7 +927,6 @@ public class VoxConfigScreen extends Screen {
                 applyEdit("x", oldX, selectedElement.x);
                 applyEdit("y", oldY, selectedElement.y);
                 updateVoxScreen();
-                updatePropertiesPanel();
                 return true;
             } else if (keyCode == GLFW.GLFW_KEY_Z && ctrl) {
                 undo();
