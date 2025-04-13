@@ -9,6 +9,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
+import org.lwjgl.opengl.GL11;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +31,7 @@ public class VoxScreen extends Screen {
     private int previousWidth = 0;
     private int previousHeight = 0;
     private VoxButton configButton;
-    private int logoR = 255, logoG = 255, logoB = 255, logoA = 255;
+    private int logoR = 255, logoG = 255, logoB = 255, logoA = 128; // Default to semi-transparent
     private int searchR = 255, searchG = 255, searchB = 255, searchA = 255;
     private final Map<String, int[]> categoryBodyColors = new HashMap<>();
     private final Map<String, int[]> categoryTitleColors = new HashMap<>();
@@ -125,7 +126,12 @@ public class VoxScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         try {
+            // Enable alpha blending for transparency
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+
             // Logo rendering with transparency
+            System.out.println("Rendering logo with alpha: " + logoA);
             context.fill(controlX, controlY, controlX + controlWidth, controlY + controlHeight,
                     (logoA << 24) | (logoR << 16) | (logoG << 8) | logoB);
             context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, logoA / 255.0f);
@@ -138,12 +144,15 @@ public class VoxScreen extends Screen {
             searchField.render(context, mouseX, mouseY, delta);
             searchWindow.render(context, mouseX, mouseY, delta);
 
-            // Category windows (handled by CategoryWindow.java)
+            // Category windows
             for (CategoryWindow window : categoryWindows) {
                 window.render(context, mouseX, mouseY, delta);
             }
 
             configButton.render(context, mouseX, mouseY, delta);
+
+            // Disable blending
+            GL11.glDisable(GL11.GL_BLEND);
         } catch (Exception e) {
             System.err.println("Failed to render VoxScreen: " + e.getMessage());
         }
@@ -232,6 +241,7 @@ public class VoxScreen extends Screen {
         this.logoG = MathHelper.clamp(g, 0, 255);
         this.logoB = MathHelper.clamp(b, 0, 255);
         this.logoA = MathHelper.clamp(a, 0, 255);
+        System.out.println("Updated logo color: R=" + logoR + ", G=" + logoG + ", B=" + logoB + ", A=" + logoA);
     }
 
     public void updateSearchPosition(int x, int y) {
