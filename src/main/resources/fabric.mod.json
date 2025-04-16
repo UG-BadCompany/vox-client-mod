@@ -10,6 +10,9 @@
             "com.yourname.vox.Vox"
         ]
     },
+    "mixins": [
+        "vox.mixins.json"
+    ],
     "depends": {
         "fabricloader": ">=0.16.9",
         "minecraft": "1.20.4",
