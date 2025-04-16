@@ -1,0 +1,14 @@
+{
+  "mappings": {
+    "com/yourname/vox/mixin/InGameOverlayRendererMixin": {
+      "renderFireOverlay": "Lnet/minecraft/class_4603;method_23070(Lnet/minecraft/class_310;Lnet/minecraft/class_4587;)V"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "com/yourname/vox/mixin/InGameOverlayRendererMixin": {
+        "renderFireOverlay": "Lnet/minecraft/class_4603;method_23070(Lnet/minecraft/class_310;Lnet/minecraft/class_4587;)V"
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@ package com.yourname.vox.features;
 
 import com.yourname.vox.AddonLoader;
 import com.yourname.vox.ConfigManager;
+import com.yourname.vox.features.addons.FireOverlayToggle;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 
@@ -17,8 +18,15 @@ public class CommandHandler {
                         .filter(addon -> addon.getName().equalsIgnoreCase(addonName))
                         .findFirst()
                         .ifPresent(addon -> {
-                            addon.toggle();
-                            mc.player.sendMessage(Text.literal("Toggled " + addonName), false);
+                            if (addon instanceof FireOverlayToggle && parts.length > 2 && parts[2].equalsIgnoreCase("mode")) {
+                                if (parts.length > 3) {
+                                    ((FireOverlayToggle) addon).setMode(parts[3].toLowerCase());
+                                }
+                            } else {
+                                addon.toggle();
+                                boolean enabled = ConfigManager.addonToggles.getOrDefault(addon.getName(), false);
+                                mc.player.sendMessage(Text.literal("Toggled " + addon.getName() + " " + (enabled ? "on" : "off")), false);
+                            }
                         });
             }
         }

@@ -1,0 +1,15 @@
+{
+  "fireoverlaytoggle": {
+    "enabled": true,
+    "mode": "auto"
+  },
+  "autototem": {
+    "enabled": false
+  },
+  "killaura": {
+    "enabled": false
+  },
+  "serverscan": {
+    "enabled": false
+  }
+}

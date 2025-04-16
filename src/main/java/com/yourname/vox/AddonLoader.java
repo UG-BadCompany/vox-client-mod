@@ -20,6 +20,7 @@ public class AddonLoader {
         addons.add(new ChunkLoaderESP());
         addons.add(new DupeHelper());
         addons.add(new FakeDisconnect());
+        addons.add(new FireOverlayToggle());
         addons.add(new Godmode());
         addons.add(new GriefingBot());
         addons.add(new HighwayNav());

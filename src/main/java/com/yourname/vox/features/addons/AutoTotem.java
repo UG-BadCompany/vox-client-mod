@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 
 public class AutoTotem implements IVoxAddon {
     private final MinecraftClient mc = MinecraftClient.getInstance();
+    public static boolean enabled = false;
 
     @Override
     public String getName() {
@@ -13,12 +14,14 @@ public class AutoTotem implements IVoxAddon {
     }
 
     @Override
-    public void onEnable() {}
+    public void onEnable() {
+        enabled = true;
+    }
 
     @Override
     public void onTick() {
-        if (mc.player != null && ConfigManager.addonToggles.getOrDefault(getName(), false)) {
-            // Add totem automation logic (e.g., swap to totem in offhand)
+        if (mc.player != null && enabled) {
+            // Placeholder for totem logic
         }
     }
 
@@ -30,11 +33,12 @@ public class AutoTotem implements IVoxAddon {
 
     @Override
     public void toggle() {
-        ConfigManager.addonToggles.put(getName(), !ConfigManager.addonToggles.getOrDefault(getName(), false));
+        enabled = !enabled;
+        ConfigManager.addonToggles.put(getName(), enabled);
     }
 
     @Override
     public String getDescription() {
-        return "Automatically equips totems of undying.";
+        return "Automatically equips a totem of undying.";
     }
 }
