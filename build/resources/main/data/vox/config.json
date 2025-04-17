@@ -11,5 +11,13 @@
   },
   "serverscan": {
     "enabled": false
+  },
+  "highwaynav": {
+    "enabled": false,
+    "axis": "x+",
+    "speed": 0.1,
+    "sprint": true,
+    "autoJump": true,
+    "pathWidth": 1.0
   }
 }

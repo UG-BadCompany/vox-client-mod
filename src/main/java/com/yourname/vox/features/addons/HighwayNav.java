@@ -3,41 +3,25 @@ package com.yourname.vox.features.addons;
 import com.yourname.vox.IVoxAddon;
 import com.yourname.vox.ConfigManager;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-
-import java.util.ArrayList;
+import net.minecraft.world.World;
+import net.minecraft.registry.tag.FluidTags;
 import java.util.Arrays;
-import java.util.List;
 
 public class HighwayNav implements IVoxAddon {
     private final MinecraftClient mc = MinecraftClient.getInstance();
-    private int targetX = 0;
-    private int targetZ = 0;
-    private boolean isBreaking = false;
-    private BlockPos breakingPos = null;
-    private int breakTicks = 0;
-    private static final int BREAK_DELAY = 5;
-    private List<BlockPos> path = new ArrayList<>();
-    private int pathIndex = 0;
-    private int statusTicks = 0;
-    private String movementMode = "walking"; // walking, running, elytra_bounce
-    private boolean isBouncing = false;
-    private float bounceTimer = 0;
-
-    // Highway definitions (Nether coordinates)
-    private static final List<Integer> MAJOR_AXES = Arrays.asList(0);
-    private static final List<Integer> SQUARE_RINGS = Arrays.asList(1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000, 21000, 22000, 23000, 24000, 25000, 26000, 27000, 28000, 29000, 30000, 35000, 40000, 45000, 50000, 125000);
-    private static final List<Integer> DIAMOND_RINGS = Arrays.asList(5000, 25000, 50000);
-    private static final int GRID_SPACING = 5000;
+    public static boolean enabled = false;
+    public static String axis = "x+"; // Default: X+ (Nether highway)
+    public static float speed = 0.1f; // Movement speed (0.05–1.0)
+    public static boolean sprint = true; // Auto-sprint
+    public static boolean autoJump = true; // Auto-jump over gaps
+    public static float pathWidth = 1.0f; // Path width to stay centered (0.5–2.0)
+    private boolean navigating = false;
+    private BlockPos lastPos = null;
+    private int stuckTicks = 0;
 
     @Override
     public String getName() {
@@ -46,263 +30,301 @@ public class HighwayNav implements IVoxAddon {
 
     @Override
     public void onEnable() {
-        targetX = ConfigManager.addonSettings.getOrDefault("HighwayNav_targetX", 0).hashCode();
-        targetZ = ConfigManager.addonSettings.getOrDefault("HighwayNav_targetZ", 0).hashCode();
-        movementMode = ConfigManager.addonSettings.getOrDefault("HighwayNav_mode", "walking").toString();
-        isBreaking = false;
-        breakingPos = null;
-        breakTicks = 0;
-        path.clear();
-        pathIndex = 0;
-        statusTicks = 0;
-        bounceTimer = 0;
-        isBouncing = false;
-        if (targetX != 0 || targetZ != 0) {
-            calculatePath();
+        enabled = true;
+        navigating = true;
+        ConfigManager.addonToggles.put(getName(), enabled);
+        if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("HighwayNav enabled"), false);
+            System.out.println("[Vox] HighwayNav enabled, navigating=" + navigating);
         }
+        loadConfig();
+        ConfigManager.saveConfig();
     }
 
     @Override
     public void onTick() {
-        if (!ConfigManager.addonToggles.getOrDefault(getName(), false) || mc.player == null || mc.world == null) return;
-
-        ClientPlayerEntity player = mc.player;
-        Vec3d pos = player.getPos();
-
-        if (targetX == 0 && targetZ == 0) {
-            player.sendMessage(Text.literal("HighwayNav: Set target with /vox highwaynav <x> <z>"), false);
-            ConfigManager.addonToggles.put(getName(), false);
+        if (!enabled || mc.player == null || !navigating) {
+            System.out.println("[Vox] HighwayNav tick skipped: enabled=" + enabled + ", player=" + (mc.player != null) + ", navigating=" + navigating);
+            stopNavigation();
             return;
         }
 
-        if (path.isEmpty()) {
-            calculatePath();
-            if (path.isEmpty()) {
-                player.sendMessage(Text.literal("HighwayNav: No valid path found"), false);
-                ConfigManager.addonToggles.put(getName(), false);
-                return;
-            }
-        }
-
-        if (pathIndex >= path.size()) {
-            player.sendMessage(Text.literal("HighwayNav: Reached destination!"), false);
-            ConfigManager.addonToggles.put(getName(), false);
+        System.out.println("[Vox] HighwayNav tick running");
+        if (!isSafeToNavigate()) {
+            stopNavigation();
             return;
         }
 
-        BlockPos nextPos = path.get(pathIndex);
-        double deltaX = nextPos.getX() + 0.5 - pos.x;
-        double deltaZ = nextPos.getZ() + 0.5 - pos.z;
-
-        if (Math.abs(deltaX) < 0.3 && Math.abs(deltaZ) < 0.3) {
-            pathIndex++;
-            return;
-        }
-
-        BlockPos frontPos = player.getBlockPos().offset(player.getHorizontalFacing());
-        if (isBreaking) {
-            handleBreaking(player, frontPos);
-        } else if (mc.world.getBlockState(frontPos).isSolidBlock(mc.world, frontPos)) {
-            handleObstacle(player, frontPos);
-        } else {
-            float yaw = (float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0f;
-            switch (movementMode) {
-                case "elytra_bounce":
-                    if (player.getEquippedStack(EquipmentSlot.CHEST).getItem() == Items.ELYTRA) {
-                        handleElytraBounce(player, yaw);
-                    } else {
-                        movePlayer(player, yaw, "walking"); // Fallback if no Elytra
-                    }
-                    break;
-                case "running":
-                    movePlayer(player, yaw, "running");
-                    break;
-                default:
-                    movePlayer(player, yaw, "walking");
-            }
-        }
-
-        // Status update every 5 seconds (100 ticks)
-        statusTicks++;
-        if (statusTicks >= 100) {
-            double dist = Math.sqrt(Math.pow(targetX - pos.x, 2) + Math.pow(targetZ - pos.z, 2));
-            player.sendMessage(Text.literal("HighwayNav: " + (int) dist + " blocks to target"), false);
-            statusTicks = 0;
-        }
-    }
-
-    private void calculatePath() {
-        path.clear();
-        pathIndex = 0;
-        if (mc.player == null) return;
-
-        Vec3d startPos = mc.player.getPos();
-        int startX = (int) startPos.x;
-        int startZ = (int) startPos.z;
-
-        int nearestStartX = findNearestHighway(startX, true);
-        int nearestStartZ = findNearestHighway(startZ, false);
-        int nearestTargetX = findNearestHighway(targetX, true);
-        int nearestTargetZ = findNearestHighway(targetZ, false);
-
-        double diagDist = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetZ - startZ, 2));
-        double straightDist = Math.abs(targetX - startX) + Math.abs(targetZ - startZ);
-        if (diagDist < straightDist * 0.8 && Math.abs(targetX) == Math.abs(targetZ)) {
-            addDiagonalPath(startX, startZ, targetX, targetZ);
-        } else {
-            addPathSegment(startX, startZ, nearestStartX, nearestStartZ);
-            addPathSegment(nearestStartX, nearestStartZ, nearestTargetX, nearestTargetZ);
-            addPathSegment(nearestTargetX, nearestTargetZ, targetX, targetZ);
-        }
-    }
-
-    private int findNearestHighway(int coord, boolean isX) {
-        List<Integer> highways = new ArrayList<>(MAJOR_AXES);
-        highways.addAll(SQUARE_RINGS);
-        highways.addAll(DIAMOND_RINGS);
-        for (int i = -10; i <= 10; i++) {
-            highways.add(i * GRID_SPACING);
-        }
-
-        int nearest = highways.get(0);
-        int minDist = Math.abs(coord - nearest);
-        for (int hwy : highways) {
-            int dist = Math.abs(coord - hwy);
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = hwy;
-            }
-        }
-        return nearest;
-    }
-
-    private void addPathSegment(int startX, int startZ, int endX, int endZ) {
-        int steps = Math.max(Math.abs(endX - startX), Math.abs(endZ - startZ));
-        for (int i = 0; i <= steps; i += 2) {
-            float t = steps == 0 ? 0 : (float) i / steps;
-            int x = Math.round(MathHelper.lerp(t, startX, endX));
-            int z = Math.round(MathHelper.lerp(t, startZ, endZ));
-            path.add(new BlockPos(x, mc.player.getBlockPos().getY(), z));
-        }
-    }
-
-    private void addDiagonalPath(int startX, int startZ, int endX, int endZ) {
-        int steps = Math.max(Math.abs(endX - startX), Math.abs(endZ - startZ));
-        for (int i = 0; i <= steps; i += 2) {
-            float t = steps == 0 ? 0 : (float) i / steps;
-            int x = Math.round(MathHelper.lerp(t, startX, endX));
-            int z = Math.round(MathHelper.lerp(t, startZ, endZ));
-            path.add(new BlockPos(x, mc.player.getBlockPos().getY(), z));
-        }
-    }
-
-    private void handleObstacle(ClientPlayerEntity player, BlockPos obstaclePos) {
-        if (player.getMainHandStack().getItem() == Items.DIAMOND_PICKAXE || player.getMainHandStack().getItem() == Items.NETHERITE_PICKAXE) {
-            startBreaking(player, obstaclePos);
-        } else {
-            detourAround(player, obstaclePos);
-        }
-    }
-
-    private void startBreaking(ClientPlayerEntity player, BlockPos pos) {
-        isBreaking = true;
-        breakingPos = pos;
-        breakTicks = 0;
-        mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
-    }
-
-    private void handleBreaking(ClientPlayerEntity player, BlockPos frontPos) {
-        if (!breakingPos.equals(frontPos)) {
-            isBreaking = false;
-            return;
-        }
-        breakTicks++;
-        if (breakTicks >= BREAK_DELAY) {
-            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, breakingPos, Direction.UP));
-            player.swingHand(Hand.MAIN_HAND);
-            isBreaking = false;
-            breakingPos = null;
-            pathIndex--;
-            calculatePath();
-        }
-    }
-
-    private void detourAround(ClientPlayerEntity player, BlockPos obstaclePos) {
-        Direction detourDir = player.getHorizontalFacing().rotateYClockwise();
-        Vec3d detourPos = player.getPos().add(detourDir.getVector().getX() * 2, 0, detourDir.getVector().getZ() * 2);
-        float detourYaw = (float) Math.toDegrees(Math.atan2(detourPos.z - player.getZ(), detourPos.x - player.getX())) - 90.0f;
-        movePlayer(player, detourYaw, movementMode);
-        calculatePath();
-    }
-
-    private void movePlayer(ClientPlayerEntity player, float targetYaw, String mode) {
-        player.setYaw(targetYaw);
-        player.setPitch(0.0f);
-        float speed = ConfigManager.addonToggles.getOrDefault("Speed", false) ? 0.5f : (mode.equals("running") ? 0.3f : 0.1f);
-        player.forwardSpeed = speed;
-    }
-
-    private void handleElytraBounce(ClientPlayerEntity player, float targetYaw) {
-        player.setYaw(targetYaw);
-        float speed = ConfigManager.addonToggles.getOrDefault("Speed", false) ? 0.5f : 0.3f;
-        if (!player.isFallFlying()) {
-            player.startFallFlying();
-        }
-
-        bounceTimer += 0.1f;
-        if (player.isOnGround() && bounceTimer > 0.2f) {
-            player.jump();
-            isBouncing = true;
-            bounceTimer = 0;
-        } else if (!player.isOnGround() && isBouncing && bounceTimer > 0.1f) {
-            player.setPitch(-20.0f);
-            Vec3d motion = player.getVelocity();
-            player.setVelocity(motion.x + Math.sin(Math.toRadians(targetYaw)) * speed, motion.y + 0.1, motion.z + Math.cos(Math.toRadians(targetYaw)) * speed);
-            isBouncing = false;
-        }
+        navigateHighway();
+        checkStuck();
     }
 
     @Override
-    public void onChat(String msg) {
-        if (msg.startsWith("/vox highwaynav")) {
-            String[] parts = msg.split(" ");
-            if (parts.length == 4 && parts[1].equals("mode")) {
-                String mode = parts[2].toLowerCase();
-                if (List.of("walking", "running", "elytra_bounce").contains(mode)) {
-                    movementMode = mode;
-                    ConfigManager.addonSettings.put("HighwayNav_mode", mode);
-                    mc.player.sendMessage(Text.literal("HighwayNav: Mode set to " + mode), false);
-                } else {
-                    mc.player.sendMessage(Text.literal("HighwayNav: Invalid mode. Use walking, running, or elytra_bounce"), false);
-                }
-            } else if (parts.length == 4) {
-                try {
-                    targetX = Integer.parseInt(parts[2]);
-                    targetZ = Integer.parseInt(parts[3]);
-                    ConfigManager.addonSettings.put("HighwayNav_targetX", targetX);
-                    ConfigManager.addonSettings.put("HighwayNav_targetZ", targetZ);
-                    mc.player.sendMessage(Text.literal("HighwayNav: Target set to " + targetX + ", " + targetZ), false);
-                    ConfigManager.addonToggles.put(getName(), true);
-                    calculatePath();
-                } catch (NumberFormatException e) {
-                    mc.player.sendMessage(Text.literal("HighwayNav: Invalid coordinates. Use /vox highwaynav <x> <z>"), false);
-                }
-            }
-        }
-    }
+    public void onChat(String msg) {}
 
     @Override
-    public void onRenderWorldLast(float partialTicks) {
-        // Placeholder for rendering path if desired
-    }
+    public void onRenderWorldLast(float partialTicks) {}
 
     @Override
     public void toggle() {
-        ConfigManager.addonToggles.put(getName(), !ConfigManager.addonToggles.getOrDefault(getName(), false));
+        enabled = !enabled;
+        navigating = enabled;
+        ConfigManager.addonToggles.put(getName(), enabled);
+        if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("HighwayNav " + (enabled ? "enabled" : "disabled")), false);
+            System.out.println("[Vox] HighwayNav toggled, enabled=" + enabled + ", navigating=" + navigating);
+        }
+        if (!enabled) {
+            stopNavigation();
+        }
+        ConfigManager.saveConfig();
     }
 
     @Override
     public String getDescription() {
-        return "Navigates highways to coordinates with walking, running, or Elytra Bounce modes, breaking or avoiding obstacles.";
+        return "Advanced navigation for 2b2t highways. Axes: x+, x-, z+, z-, x+z+, etc. Configurable sprint, jump, speed, width.";
+    }
+
+    public void setAxis(String newAxis) {
+        if (Arrays.asList("x+", "x-", "z+", "z-", "x+z+", "x-z+", "x+z-", "x-z-").contains(newAxis.toLowerCase())) {
+            axis = newAxis.toLowerCase();
+            ConfigManager.addonSettings.put(getName() + "_axis", axis);
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("HighwayNav axis set to " + axis), false);
+            }
+            ConfigManager.saveConfig();
+        } else if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("Invalid axis. Use: x+, x-, z+, z-, x+z+, x-z+, x+z-, x-z-"), false);
+        }
+    }
+
+    public void setSpeed(float newSpeed) {
+        if (newSpeed >= 0.05f && newSpeed <= 1.0f) {
+            speed = newSpeed;
+            ConfigManager.addonSettings.put(getName() + "_speed", speed);
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("HighwayNav speed set to " + speed), false);
+            }
+            ConfigManager.saveConfig();
+        } else if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("Speed must be between 0.05 and 1.0"), false);
+        }
+    }
+
+    public void setSprint(boolean newSprint) {
+        sprint = newSprint;
+        ConfigManager.addonSettings.put(getName() + "_sprint", sprint);
+        if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("HighwayNav sprint " + (sprint ? "enabled" : "disabled")), false);
+        }
+        ConfigManager.saveConfig();
+    }
+
+    public void setAutoJump(boolean newAutoJump) {
+        autoJump = newAutoJump;
+        ConfigManager.addonSettings.put(getName() + "_autoJump", autoJump);
+        if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("HighwayNav auto-jump " + (autoJump ? "enabled" : "disabled")), false);
+        }
+        ConfigManager.saveConfig();
+    }
+
+    public void setPathWidth(float newWidth) {
+        if (newWidth >= 0.5f && newWidth <= 2.0f) {
+            pathWidth = newWidth;
+            ConfigManager.addonSettings.put(getName() + "_pathWidth", pathWidth);
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("HighwayNav path width set to " + pathWidth), false);
+            }
+            ConfigManager.saveConfig();
+        } else if (mc.player != null) {
+            mc.player.sendMessage(Text.literal("Path width must be between 0.5 and 2.0"), false);
+        }
+    }
+
+    private boolean isSafeToNavigate() {
+        if (mc.player == null || mc.world == null) {
+            System.out.println("[Vox] HighwayNav unsafe: player or world null");
+            return false;
+        }
+
+        // Check Y-level (Nether highway: Y=118–122)
+        if (mc.player.getY() < 118.0 || mc.player.getY() > 122.0) {
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("Please move to Y=118–122 for highway navigation"), false);
+            }
+            System.out.println("[Vox] HighwayNav unsafe: Y=" + mc.player.getY() + ", expected 118–122");
+            return false;
+        }
+
+        // Check health
+        if (mc.player.getHealth() < 8.0f) {
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("Low health detected, pausing navigation"), false);
+            }
+            System.out.println("[Vox] HighwayNav unsafe: health=" + mc.player.getHealth());
+            return false;
+        }
+
+        // Check footing (avoid falling into lava)
+        BlockPos below = mc.player.getBlockPos().down();
+        if (mc.world.getBlockState(below).isAir() || mc.world.getBlockState(below).getFluidState().isIn(FluidTags.LAVA)) {
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("Unsafe footing detected, pausing navigation"), false);
+            }
+            System.out.println("[Vox] HighwayNav unsafe: footing air or lava at " + below);
+            return false;
+        }
+
+        System.out.println("[Vox] HighwayNav safe to navigate");
+        return true;
+    }
+
+    private void navigateHighway() {
+        if (mc.player == null || mc.world == null) {
+            System.out.println("[Vox] HighwayNav navigateHighway skipped: player or world null");
+            return;
+        }
+
+        System.out.println("[Vox] HighwayNav navigating, axis=" + axis + ", speed=" + speed + ", sprint=" + sprint);
+
+        // Set player yaw to match axis
+        float yaw = switch (axis) {
+            case "x+" -> 90.0f;
+            case "x-" -> -90.0f;
+            case "z+" -> 0.0f;
+            case "z-" -> 180.0f;
+            case "x+z+" -> 45.0f;
+            case "x-z+" -> -45.0f;
+            case "x+z-" -> 135.0f;
+            case "x-z-" -> -135.0f;
+            default -> mc.player.getYaw();
+        };
+        mc.player.setYaw(yaw);
+        System.out.println("[Vox] HighwayNav set yaw=" + yaw);
+
+        // Calculate motion based on axis
+        Vec3d motion = new Vec3d(0, 0, 0);
+        double adjustedSpeed = sprint ? speed * 1.3 : speed;
+        switch (axis) {
+            case "x+":
+                motion = new Vec3d(adjustedSpeed, 0, 0);
+                break;
+            case "x-":
+                motion = new Vec3d(-adjustedSpeed, 0, 0);
+                break;
+            case "z+":
+                motion = new Vec3d(0, 0, adjustedSpeed);
+                break;
+            case "z-":
+                motion = new Vec3d(0, 0, -adjustedSpeed);
+                break;
+            case "x+z+":
+                motion = new Vec3d(adjustedSpeed / Math.sqrt(2), 0, adjustedSpeed / Math.sqrt(2));
+                break;
+            case "x-z+":
+                motion = new Vec3d(-adjustedSpeed / Math.sqrt(2), 0, adjustedSpeed / Math.sqrt(2));
+                break;
+            case "x+z-":
+                motion = new Vec3d(adjustedSpeed / Math.sqrt(2), 0, -adjustedSpeed / Math.sqrt(2));
+                break;
+            case "x-z-":
+                motion = new Vec3d(-adjustedSpeed / Math.sqrt(2), 0, -adjustedSpeed / Math.sqrt(2));
+                break;
+        }
+
+        // Center on path
+        double centerX = Math.round(mc.player.getX() / pathWidth) * pathWidth;
+        double centerZ = Math.round(mc.player.getZ() / pathWidth) * pathWidth;
+        double deltaX = centerX - mc.player.getX();
+        double deltaZ = centerZ - mc.player.getZ();
+        motion = motion.add(deltaX * 0.05, 0, deltaZ * 0.05); // Gentle correction
+        System.out.println("[Vox] HighwayNav motion: x=" + motion.x + ", z=" + motion.z);
+
+        // Check for obstacles
+        BlockPos front = mc.player.getBlockPos().offset(mc.player.getHorizontalFacing(), 1);
+        boolean shouldJump = !mc.world.getBlockState(front).isAir() && autoJump;
+        holdJumpKey(shouldJump);
+        System.out.println("[Vox] HighwayNav " + (shouldJump ? "jumping over obstacle at " + front : "not jumping"));
+
+        // Apply motion with fallback
+        mc.player.setVelocity(motion.x, mc.player.getVelocity().y, motion.z);
+        holdForwardKey(true);
+        if (sprint) {
+            mc.player.setSprinting(true);
+        }
+        System.out.println("[Vox] HighwayNav applied velocity, sprint=" + mc.player.isSprinting());
+    }
+
+    private void stopNavigation() {
+        navigating = false;
+        holdForwardKey(false);
+        holdJumpKey(false);
+        if (mc.player != null) {
+            mc.player.setVelocity(0, mc.player.getVelocity().y, 0);
+            mc.player.setSprinting(false);
+            System.out.println("[Vox] HighwayNav stopped navigation");
+        }
+        stuckTicks = 0;
+        lastPos = null;
+    }
+
+    private void checkStuck() {
+        if (mc.player == null) {
+            System.out.println("[Vox] HighwayNav checkStuck skipped: player null");
+            return;
+        }
+
+        BlockPos currentPos = mc.player.getBlockPos();
+        if (lastPos != null && lastPos.equals(currentPos)) {
+            stuckTicks++;
+            if (stuckTicks > 100) { // ~5 seconds
+                if (mc.player != null) {
+                    mc.player.sendMessage(Text.literal("Stuck detected, pausing navigation"), false);
+                }
+                System.out.println("[Vox] HighwayNav stuck detected, ticks=" + stuckTicks);
+                stopNavigation();
+            }
+        } else {
+            stuckTicks = 0;
+        }
+        lastPos = currentPos;
+        System.out.println("[Vox] HighwayNav checkStuck: stuckTicks=" + stuckTicks);
+    }
+
+    private void holdForwardKey(boolean hold) {
+        KeyBinding forwardKey = mc.options.forwardKey;
+        forwardKey.setPressed(hold);
+        System.out.println("[Vox] HighwayNav forward key: " + (hold ? "pressed" : "released"));
+    }
+
+    private void holdJumpKey(boolean hold) {
+        KeyBinding jumpKey = mc.options.jumpKey;
+        jumpKey.setPressed(hold);
+        System.out.println("[Vox] HighwayNav jump key: " + (hold ? "pressed" : "released"));
+    }
+
+    private void loadConfig() {
+        Object savedAxis = ConfigManager.addonSettings.get(getName() + "_axis");
+        if (savedAxis instanceof String && Arrays.asList("x+", "x-", "z+", "z-", "x+z+", "x-z+", "x+z-", "x-z-").contains(savedAxis)) {
+            axis = (String) savedAxis;
+        }
+        Object savedSpeed = ConfigManager.addonSettings.get(getName() + "_speed");
+        if (savedSpeed instanceof Float && (Float) savedSpeed >= 0.05f && (Float) savedSpeed <= 1.0f) {
+            speed = (Float) savedSpeed;
+        }
+        Object savedSprint = ConfigManager.addonSettings.get(getName() + "_sprint");
+        if (savedSprint instanceof Boolean) {
+            sprint = (Boolean) savedSprint;
+        }
+        Object savedAutoJump = ConfigManager.addonSettings.get(getName() + "_autoJump");
+        if (savedAutoJump instanceof Boolean) {
+            autoJump = (Boolean) savedAutoJump;
+        }
+        Object savedPathWidth = ConfigManager.addonSettings.get(getName() + "_pathWidth");
+        if (savedPathWidth instanceof Float && (Float) savedPathWidth >= 0.5f && (Float) savedPathWidth <= 2.0f) {
+            pathWidth = (Float) savedPathWidth;
+        }
+        System.out.println("[Vox] HighwayNav loaded config: axis=" + axis + ", speed=" + speed + ", sprint=" + sprint + ", autoJump=" + autoJump + ", pathWidth=" + pathWidth);
     }
 }

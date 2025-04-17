@@ -3,7 +3,6 @@ package com.yourname.vox;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.yourname.vox.features.addons.FireOverlayToggle;
 
 import java.io.File;
 import java.io.FileReader;
@@ -19,12 +18,9 @@ public class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     static {
-        // Example settings
         addonSettings.put("AutoRespond_trigger_hi", "true");
         addonSettings.put("AutoRespond_response_hi", "Hello!");
         addonSettings.put("ServerScan_test", "example_value");
-
-        // Initialize toggles
         AddonLoader.getAddons().forEach(addon -> addonToggles.putIfAbsent(addon.getName(), false));
     }
 
@@ -45,11 +41,25 @@ public class ConfigManager {
                 if (addonConfig != null) {
                     boolean enabled = addonConfig.get("enabled").getAsBoolean();
                     addonToggles.put(addon.getName(), enabled);
-                    if (addon instanceof FireOverlayToggle && addonConfig.has("mode")) {
-                        String mode = addonConfig.get("mode").getAsString();
-                        ((FireOverlayToggle) addon).setMode(mode);
-                        addonSettings.put(addon.getName() + "_mode", mode);
-                    }
+                    // Load all settings dynamically
+                    addonConfig.entrySet().forEach(entry -> {
+                        String key = entry.getKey();
+                        if (!key.equals("enabled")) {
+                            Object value;
+                            if (entry.getValue().isJsonPrimitive()) {
+                                if (entry.getValue().getAsJsonPrimitive().isBoolean()) {
+                                    value = entry.getValue().getAsBoolean();
+                                } else if (entry.getValue().getAsJsonPrimitive().isNumber()) {
+                                    value = entry.getValue().getAsFloat();
+                                } else {
+                                    value = entry.getValue().getAsString();
+                                }
+                            } else {
+                                value = entry.getValue().toString();
+                            }
+                            addonSettings.put(addon.getName() + "_" + key, value);
+                        }
+                    });
                     System.out.println("[Vox] Loaded " + addon.getName() + ": enabled=" + enabled);
                 }
             }
@@ -66,10 +76,20 @@ public class ConfigManager {
                 JsonObject addonConfig = new JsonObject();
                 boolean enabled = addonToggles.getOrDefault(addon.getName(), false);
                 addonConfig.addProperty("enabled", enabled);
-                if (addon instanceof FireOverlayToggle) {
-                    String mode = addonSettings.getOrDefault(addon.getName() + "_mode", FireOverlayToggle.mode).toString();
-                    addonConfig.addProperty("mode", mode);
-                }
+                // Save all settings for this addon
+                addonSettings.entrySet().stream()
+                        .filter(entry -> entry.getKey().startsWith(addon.getName() + "_"))
+                        .forEach(entry -> {
+                            String key = entry.getKey().substring(addon.getName().length() + 1);
+                            Object value = entry.getValue();
+                            if (value instanceof Boolean) {
+                                addonConfig.addProperty(key, (Boolean) value);
+                            } else if (value instanceof Number) {
+                                addonConfig.addProperty(key, (Number) value);
+                            } else {
+                                addonConfig.addProperty(key, value.toString());
+                            }
+                        });
                 config.add(name, addonConfig);
             }
             CONFIG_FILE.getParentFile().mkdirs();

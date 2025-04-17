@@ -93,7 +93,7 @@ public class VoxScreen extends Screen {
                             if (category.equals("Player")) return List.of("FireOverlayToggle", "AntiAFK", "AutoRespond").contains(a.getName());
                             if (category.equals("Render")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
                             if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
-                            if (category.equals("World")) return List.of("Temp").contains(a.getName());
+                            if (category.equals("World")) return List.of("HighwayNav").contains(a.getName());
                             if (category.equals("Miscellaneous")) return List.of("ServerScan").contains(a.getName());
                             if (category.equals("Core")) return List.of("ClickGUI", "HUD").contains(a.getName());
                             return false;
