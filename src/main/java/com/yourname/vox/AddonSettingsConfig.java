@@ -13,7 +13,9 @@ public class AddonSettingsConfig {
         settingsOptions.put("HighwayNav", Arrays.asList(
                 "Axis: x+, x-, z+, z-, x+z+, x-z+, x+z-, x-z-",
                 "Sprint: true, false",
-                "AutoJump: true, false"
+                "AutoJump: true, false",
+                "Speed: 0.05, 1.0",
+                "PathWidth: 0.5, 2.0"
         ));
 
         // FireOverlayToggle settings

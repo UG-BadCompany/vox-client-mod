@@ -92,9 +92,9 @@ public class VoxScreen extends Screen {
                             if (category.equals("Combat")) return List.of("KillAura", "BowAimbot").contains(a.getName());
                             if (category.equals("Player")) return List.of("FireOverlayToggle", "AntiAFK", "AutoRespond").contains(a.getName());
                             if (category.equals("Render")) return List.of("ChunkLoaderESP", "StashFinder").contains(a.getName());
-                            if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "Teleport").contains(a.getName());
-                            if (category.equals("World")) return List.of("HighwayNav").contains(a.getName());
-                            if (category.equals("Miscellaneous")) return List.of("ServerScan").contains(a.getName());
+                            if (category.equals("Movement")) return List.of("Speed", "PhaseClip", "HighwayNav").contains(a.getName());
+                            if (category.equals("World")) return List.of("ServerScan").contains(a.getName());
+                            if (category.equals("Miscellaneous")) return List.of("AutoNav").contains(a.getName());
                             if (category.equals("Core")) return List.of("ClickGUI", "HUD").contains(a.getName());
                             return false;
                         })
@@ -128,30 +128,25 @@ public class VoxScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         try {
-            // Enable alpha blending for transparency
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-            // Logo rendering without background fill
             System.out.println("Rendering logo with alpha: " + logoA);
             context.setShaderColor(logoR / 255.0f, logoG / 255.0f, logoB / 255.0f, logoA / 255.0f);
             context.drawTexture(logoTexture, controlX, controlY, 0, 0, controlWidth, controlHeight, controlWidth, controlHeight);
             context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-            // Search field rendering with transparency
             context.fill(searchField.getX(), searchField.getY(), searchField.getX() + searchField.getWidth(), searchField.getY() + searchField.getHeight(),
                     (searchA << 24) | (searchR << 16) | (searchG << 8) | searchB);
             searchField.render(context, mouseX, mouseY, delta);
             searchWindow.render(context, mouseX, mouseY, delta);
 
-            // Category windows
             for (CategoryWindow window : categoryWindows) {
                 window.render(context, mouseX, mouseY, delta);
             }
 
             configButton.render(context, mouseX, mouseY, delta);
 
-            // Disable blending
             GL11.glDisable(GL11.GL_BLEND);
         } catch (Exception e) {
             System.err.println("Failed to render VoxScreen: " + e.getMessage());
@@ -166,30 +161,49 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (searchField.mouseClicked(mouseX, mouseY, button)) {
-            setFocused(searchField);
-            return true;
-        }
-        if (configButton.mouseClicked(mouseX, mouseY, button)) {
-            MinecraftClient.getInstance().setScreen(new VoxConfigScreen(this, theme, new VoxConfigManager(theme)));
-            return true;
-        }
-        if (button == 0) {
-            if (mouseX >= controlX && mouseX <= controlX + controlWidth && mouseY >= controlY && mouseY <= controlY + controlHeight) {
-                draggingLogo = true;
-                dragOffsetX = (int) (mouseX - controlX);
+        System.out.println("[Vox] VoxScreen mouseClicked: button=" + button + ", mouseX=" + mouseX + ", mouseY=" + mouseY);
+        if (button == 0 || button == 1) {
+            if (searchField.mouseClicked(mouseX, mouseY, button)) {
+                setFocused(searchField);
+                System.out.println("[Vox] SearchField clicked");
                 return true;
             }
-            if (searchWindow.mouseClicked(mouseX, mouseY, button)) return true;
-            for (CategoryWindow window : categoryWindows) {
-                if (window.mouseClicked(mouseX, mouseY, button)) return true;
+            if (configButton.mouseClicked(mouseX, mouseY, button)) {
+                MinecraftClient.getInstance().setScreen(new VoxConfigScreen(this, theme, new VoxConfigManager(theme)));
+                System.out.println("[Vox] ConfigButton clicked");
+                return true;
             }
+            if (button == 0 && mouseX >= controlX && mouseX <= controlX + controlWidth && mouseY >= controlY && mouseY <= controlY + controlHeight) {
+                draggingLogo = true;
+                dragOffsetX = (int) (mouseX - controlX);
+                System.out.println("[Vox] Logo dragging started");
+                return true;
+            }
+            if (searchWindow.mouseClicked(mouseX, mouseY, button)) {
+                System.out.println("[Vox] SearchWindow handled click");
+                return true;
+            }
+            for (int i = categoryWindows.size() - 1; i >= 0; i--) {
+                CategoryWindow window = categoryWindows.get(i);
+                if (mouseX >= window.getX() && mouseX <= window.getX() + window.getWidth() &&
+                        mouseY >= window.getY() && mouseY <= window.getY() + window.getHeight()) {
+                    System.out.println("[Vox] Click within CategoryWindow: category=" + window.getCategory() + ", button=" + button);
+                    if (window.mouseClicked(mouseX, mouseY, button)) {
+                        System.out.println("[Vox] CategoryWindow handled click: category=" + window.getCategory() + ", button=" + button);
+                        categoryWindows.remove(i);
+                        categoryWindows.add(window);
+                        return true;
+                    }
+                }
+            }
+            System.out.println("[Vox] No actionable click detected at x=" + mouseX + ", y=" + mouseY);
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        System.out.println("[Vox] VoxScreen mouseReleased: button=" + button + ", mouseX=" + mouseX + ", mouseY=" + mouseY);
         draggingLogo = false;
         searchWindow.mouseReleased(mouseX, mouseY, button);
         for (CategoryWindow window : categoryWindows) {
@@ -200,6 +214,7 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        System.out.println("[Vox] VoxScreen mouseDragged: button=" + button + ", mouseX=" + mouseX + ", mouseY=" + mouseY);
         if (draggingLogo) {
             controlX = (int) (mouseX - dragOffsetX);
             controlX = MathHelper.clamp(controlX, 0, width - controlWidth);
@@ -214,6 +229,7 @@ public class VoxScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        System.out.println("[Vox] VoxScreen mouseScrolled: mouseX=" + mouseX + ", mouseY=" + mouseY + ", verticalAmount=" + verticalAmount);
         for (CategoryWindow window : categoryWindows) {
             if (window.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
         }
